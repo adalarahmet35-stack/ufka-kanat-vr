@@ -212,18 +212,29 @@ const audioLoader = new THREE.AudioLoader();
 let isMusicLoaded = false;
 
 // Müzik dosyasını yükle ve ayarla
-audioLoader.load('muzik.mp3', function(buffer) {
-    gameMusic.setBuffer(buffer);
-    gameMusic.setLoop(true);
-    gameMusic.setVolume(0.5);
-    isMusicLoaded = true;
-    console.log("Müzik hazır.");
-}, undefined, function(err) {
-    console.error("Müzik yüklenemedi, dosya adını kontrol et.");
-});
+function loadMusic() {
+    audioLoader.load('muzik.mp3', function(buffer) {
+        gameMusic.setBuffer(buffer);
+        gameMusic.setLoop(true);
+        gameMusic.setVolume(0.5);
+        isMusicLoaded = true;
+        console.log("Müzik hazır.");
+    }, function(xhr) {
+        console.log((xhr.loaded / xhr.total * 100) + '% yüklendi');
+    }, function(err) {
+        console.error("Müzik yüklenemedi. Dosyanın adının 'muzik.mp3' olduğundan ve HTML ile aynı klasörde olduğundan emin ol.");
+    });
+}
+loadMusic();
 
 function handleGlobalClick(e) {
   if (isShopOpen) return;
+  
+  // Tarayıcı ses politikasını aşmak için AudioContext'i canlandır
+  if (THREE.AudioContext.getContext().state === 'suspended') {
+      THREE.AudioContext.getContext().resume();
+  }
+
   if ($('gameover').style.display === 'flex') {
     restartGame();
   } else if (!isPlaying && !isShopOpen) {
@@ -444,7 +455,9 @@ const keys = {};
 let audioCtx=null, engineGain=null;
 function initAudio(){
   try{
-    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    audioCtx = THREE.AudioContext.getContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
     engineGain = audioCtx.createGain();
     engineGain.gain.value = 0;
     const comp = audioCtx.createDynamicsCompressor();
@@ -524,8 +537,6 @@ function doGameOver(){
   $('gameover').style.display='flex';
   
   if(engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, .4);
-  // Oyun bittiğinde müziği durdurmak istersen burayı açabilirsin:
-  // if(gameMusic.isPlaying) gameMusic.stop();
 }
 
 function closeShop(){ isShopOpen=false; $('shop').style.display='none'; if(!isPlaying) $('menu').style.display='flex'; }
