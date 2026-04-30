@@ -200,21 +200,26 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// VR Beyaz ekran fix: Renderer'ı XR moduna hazırla
 renderer.xr.enabled = true;
 
 /* ═══════════════════════════════════════════════
-    SES SİSTEMİ VE MÜZİK YÜKLEME
+    SES SİSTEMİ VE MÜZİK YÜKLEME (GELİŞMİŞ)
 ═══════════════════════════════════════════════ */
 const listener = new THREE.AudioListener();
 const gameMusic = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 
-// İSTEDİĞİN EKLEME:
+let isMusicLoaded = false;
+
+// Müzik dosyasını yükle ve ayarla
 audioLoader.load('muzik.mp3', function(buffer) {
     gameMusic.setBuffer(buffer);
     gameMusic.setLoop(true);
     gameMusic.setVolume(0.5);
+    isMusicLoaded = true;
+    console.log("Müzik hazır.");
+}, undefined, function(err) {
+    console.error("Müzik yüklenemedi, dosya adını kontrol et.");
 });
 
 function handleGlobalClick(e) {
@@ -238,7 +243,7 @@ scene.fog = new THREE.FogExp2(0xAADDBB, 0.000065);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.5, 80000);
 camera.position.set(0, 150, 300);
-camera.add(listener); // Ses dinleyicisini kameraya ekle
+camera.add(listener); 
 
 const clock = new THREE.Clock();
 
@@ -451,8 +456,11 @@ function initAudio(){
       const gn = audioCtx.createGain(); gn.gain.value = g;
       osc.connect(gn); gn.connect(engineGain); osc.start();
     });
-    // Müzik çalmayı başlat
-    if(gameMusic.buffer && !gameMusic.isPlaying) gameMusic.play();
+    
+    // Müzik kontrolü
+    if(isMusicLoaded && !gameMusic.isPlaying) {
+        gameMusic.play();
+    }
   }catch(e){ console.warn('Audio Fail',e); }
 }
 
@@ -490,8 +498,12 @@ function startGame(){
   createRings();
   $('menu').style.display='none'; $('gameover').style.display='none';
   $('hud').style.display='flex'; $('cross').style.display='block';
+  
   if(engineGain) engineGain.gain.setTargetAtTime(.42, audioCtx.currentTime, .2);
-  if(gameMusic.buffer && !gameMusic.isPlaying) gameMusic.play();
+  
+  // Müziği her başlangıçta kontrol et
+  if(isMusicLoaded && !gameMusic.isPlaying) gameMusic.play();
+  
   showNotif('UÇUŞ BAŞLIYOR!','#00E5FF');
 }
 
@@ -510,8 +522,10 @@ function doGameOver(){
   $('go-pts').textContent = `PUAN: ${Math.floor(points)}`;
   $('go-hs').textContent  = `EN İYİ: ${highScore}`;
   $('gameover').style.display='flex';
+  
   if(engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, .4);
-  if(gameMusic.isPlaying) gameMusic.stop();
+  // Oyun bittiğinde müziği durdurmak istersen burayı açabilirsin:
+  // if(gameMusic.isPlaying) gameMusic.stop();
 }
 
 function closeShop(){ isShopOpen=false; $('shop').style.display='none'; if(!isPlaying) $('menu').style.display='flex'; }
@@ -569,7 +583,6 @@ const _camWanted = new THREE.Vector3();
 const _accel = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 
-// Beyaz ekranı engelleyen ve VR'da görüntüyü sağlayan ana döngü
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05);
   radar.rotation.y += 1.6*dt;
@@ -580,14 +593,12 @@ renderer.setAnimationLoop(() => {
     const hr = heading * Math.PI/180;
     _fwd.set(-Math.sin(hr), 0, -Math.cos(hr));
 
-    // VR Kontrolleri Girdisi
     const session = renderer.xr.getSession();
     if (session) {
       for (const source of session.inputSources) {
         if (source.gamepad) {
           const axes = source.gamepad.axes;
           const buttons = source.gamepad.buttons;
-          // Sol Joystick: Yön | Sağ Joystick: İrtifa
           if (source.handedness === 'left') {
             heading += axes[2] * -150 * dt;
             if (buttons[0].pressed) _accel.addScaledVector(_fwd, 75*upSpeed);
@@ -601,7 +612,6 @@ renderer.setAnimationLoop(() => {
       }
     }
 
-    // Klavye Kontrolleri
     if(keys['w']||keys['arrowup']) _accel.addScaledVector(_fwd, 75*upSpeed);
     if(keys['s']||keys['arrowdown']) _accel.addScaledVector(_fwd, -45*upSpeed);
     if(keys['a']||keys['arrowleft']) heading += (195*upTurn)*dt;
