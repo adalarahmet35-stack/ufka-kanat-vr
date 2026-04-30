@@ -102,7 +102,6 @@ text-shadow:0 0 40px rgba(255,50,50,.8);letter-spacing:.08em;margin-bottom:12px;
 #gameover .go-hs{font-size:clamp(13px,2vw,18px);color:#AABBCC;margin-bottom:32px;}
 #gameover .go-hint{color:#6688AA;font-size:clamp(11px,1.6vw,14px);letter-spacing:.15em;}
 
-/* ── GEMINI AI HUD ── */
 #ai-feedback {
   margin-top: 20px;
   padding: 15px;
@@ -146,8 +145,8 @@ text-shadow:0 0 40px rgba(255,50,50,.8);letter-spacing:.08em;margin-bottom:12px;
 <div id="hud" class="overlay">
   <div class="hud-block">
     <div id="score-t" class="hud-line">PUAN: 0</div>
-    <div id="bat-t"   class="hud-line">BATARYA: %100</div>
-    <div id="alt-t"   class="hud-line">İRTİFA: 0m</div>
+    <div id="bat-t" class="hud-line">BATARYA: %100</div>
+    <div id="alt-t" class="hud-line">İRTİFA: 0m</div>
     <div id="speed-t" class="hud-line">HIZ: x1.0</div>
   </div>
 </div>
@@ -178,7 +177,7 @@ text-shadow:0 0 40px rgba(255,50,50,.8);letter-spacing:.08em;margin-bottom:12px;
 <div id="gameover" class="overlay">
   <div class="go-label" id="go-label">OYUN BİTTİ</div>
   <div class="go-pts" id="go-pts">PUAN: 0</div>
-  <div class="go-hs"  id="go-hs">REKOR: 0</div>
+  <div class="go-hs" id="go-hs">REKOR: 0</div>
   <button id="ai-btn" class="ai-btn" onclick="event.stopPropagation(); getAIFeedback()">✨ YAPAY ZEKA KOÇU ANALİZİ</button>
   <div id="ai-feedback"></div>
   <div class="go-hint" style="margin-top:20px">ENTER veya TETİK ile tekrar oyna</div>
@@ -187,54 +186,45 @@ text-shadow:0 0 40px rgba(255,50,50,.8);letter-spacing:.08em;margin-bottom:12px;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
-
 const apiKey = ""; 
-
-/* ═══════════════════════════════════════════════
-    RENDERER KURULUMU (VR DESTEKLİ)
-═══════════════════════════════════════════════ */
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
 renderer.xr.enabled = true;
 
-/* ═══════════════════════════════════════════════
-    SES SİSTEMİ VE MÜZİK YÜKLEME (GELİŞMİŞ)
-═══════════════════════════════════════════════ */
 const listener = new THREE.AudioListener();
 const gameMusic = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
-
 let isMusicLoaded = false;
 
-// Müzik dosyasını yükle ve ayarla
 function loadMusic() {
     audioLoader.load('muzik.mp3', function(buffer) {
-        gameMusic.setBuffer(buffer);
-        gameMusic.setLoop(true);
-        gameMusic.setVolume(0.5);
-        isMusicLoaded = true;
-        console.log("Müzik hazır.");
+        try {
+            gameMusic.setBuffer(buffer);
+            gameMusic.setLoop(true);
+            gameMusic.setVolume(0.5);
+            isMusicLoaded = true;
+            console.log("Müzik başarıyla decode edildi.");
+        } catch(e) {
+            console.error("Ses decode hatası yakalandı (Dosya bozuk olabilir):", e);
+        }
     }, function(xhr) {
         console.log((xhr.loaded / xhr.total * 100) + '% yüklendi');
     }, function(err) {
-        console.error("Müzik yüklenemedi. Dosyanın adının 'muzik.mp3' olduğundan ve HTML ile aynı klasörde olduğundan emin ol.");
+        console.error("Müzik dosyası bulunamadı.");
     });
 }
 loadMusic();
 
 function handleGlobalClick(e) {
   if (isShopOpen) return;
-  
-  // Tarayıcı ses politikasını aşmak için AudioContext'i canlandır
+  // Kullanıcı her tıkladığında AudioContext'i aktif etmeye çalış (Tarayıcı kilitlerini açar)
   if (THREE.AudioContext.getContext().state === 'suspended') {
       THREE.AudioContext.getContext().resume();
   }
-
   if ($('gameover').style.display === 'flex') {
     restartGame();
   } else if (!isPlaying && !isShopOpen) {
@@ -251,16 +241,11 @@ window.addEventListener('resize', ()=>{
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ECAFF);
 scene.fog = new THREE.FogExp2(0xAADDBB, 0.000065);
-
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.5, 80000);
 camera.position.set(0, 150, 300);
 camera.add(listener); 
-
 const clock = new THREE.Clock();
 
-/* ═══════════════════════════════════════════════
-    IŞIKLANDIRMA
-═══════════════════════════════════════════════ */
 scene.add(new THREE.AmbientLight(0x8899BB, 0.55));
 const sun = new THREE.DirectionalLight(0xFFFCEE, 1.15);
 sun.position.set(800, 2000, 500);
@@ -268,12 +253,9 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(2048,2048);
 sun.shadow.camera.far = 6000;
 sun.shadow.camera.left = sun.shadow.camera.bottom = -600;
-sun.shadow.camera.right = sun.shadow.camera.top  =  600;
+sun.shadow.camera.right = sun.shadow.camera.top = 600;
 scene.add(sun);
 
-/* ═══════════════════════════════════════════════
-    YARDIMCI ARAÇLAR
-═══════════════════════════════════════════════ */
 function rnd(a,b){ return a + Math.random()*(b-a); }
 function lmat(hex, emit=0x000000){
   return new THREE.MeshLambertMaterial({color:hex, emissive:emit});
@@ -284,9 +266,6 @@ function box(w,h,d,hex,emit=0x000000){
   return m;
 }
 
-/* ═══════════════════════════════════════════════
-    DÜNYA ÖĞELERİ
-═══════════════════════════════════════════════ */
 const gnd = new THREE.Mesh(
   new THREE.PlaneGeometry(120000,120000),
   new THREE.MeshLambertMaterial({color:0x1E6020})
@@ -327,14 +306,10 @@ for(let i=0;i<300;i++){
   }
 }
 
-/* ═══════════════════════════════════════════════
-    İSTASYON
-═══════════════════════════════════════════════ */
 const STATION = new THREE.Vector3(0,0,-2500);
 const stGrp = new THREE.Group();
 stGrp.position.copy(STATION);
 scene.add(stGrp);
-
 const sb = box(35,2,35,0x10111E); sb.position.y=1; stGrp.add(sb);
 const sc = box(15,12,15,0x1E2C3A); sc.position.y=6; stGrp.add(sc);
 for(const [px,pz] of [[-14,-14],[14,-14],[-14,14],[14,14]]){
@@ -347,12 +322,7 @@ const stLight = new THREE.PointLight(0x0099FF,4,350); stLight.position.set(0,30,
 const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2,8,8), new THREE.MeshBasicMaterial({color:0x00FFFF}));
 beacon.position.y=21; stGrp.add(beacon);
 
-/* ═══════════════════════════════════════════════
-    HALKALAR
-═══════════════════════════════════════════════ */
 const RING_DATA = [];
-const PWR_TYPES = ["HIZ +","BATARYA +","+1500 PUAN"];
-
 function createRings() {
   RING_DATA.forEach(r => {
     if(r.userData.light) scene.remove(r.userData.light);
@@ -360,23 +330,18 @@ function createRings() {
     scene.remove(r);
   });
   RING_DATA.length = 0;
-
   for(let i=0;i<120;i++){
     const isBlue = Math.random() < .25;
-    const col    = isBlue ? 0x0099FF : 0xFF2200;
-    const emCol  = isBlue ? 0x002244 : 0x440000;
-
+    const col = isBlue ? 0x0099FF : 0xFF2200;
+    const emCol = isBlue ? 0x002244 : 0x440000;
     const ringMesh = new THREE.Mesh(
       new THREE.RingGeometry(7.2, 8.8, 32),
       new THREE.MeshLambertMaterial({color:col, emissive:emCol, side: THREE.DoubleSide})
     );
-    
     const x = Math.sin(i * 0.4) * 350 + rnd(-80, 80); 
     const y = 50 + Math.cos(i * 0.25) * 40 + rnd(0, 20); 
     const z = -(600 + i * 240); 
-    
     ringMesh.position.set(x, y, z);
-
     const canvasLabel = document.createElement('canvas');
     const ctxLabel = canvasLabel.getContext('2d');
     canvasLabel.width = 512;
@@ -391,17 +356,14 @@ function createRings() {
     ctxLabel.textAlign = "center";
     ctxLabel.textBaseline = "middle";
     ctxLabel.fillText("TEVFİK İLERİ", 256, 64);
-
     const labelTex = new THREE.CanvasTexture(canvasLabel);
     const labelMat = new THREE.MeshBasicMaterial({map: labelTex, transparent: true});
     const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 2.5), labelMat);
     labelMesh.position.copy(ringMesh.position);
     scene.add(labelMesh);
-
     const rl = new THREE.PointLight(col, 1.8, 55);
     rl.position.copy(ringMesh.position);
     scene.add(rl);
-
     ringMesh.userData = {active:true, isBlue, light: rl, label: labelMesh};
     scene.add(ringMesh);
     RING_DATA.push(ringMesh);
@@ -409,17 +371,12 @@ function createRings() {
 }
 createRings();
 
-/* ═══════════════════════════════════════════════
-    DRONE MODELİ
-═══════════════════════════════════════════════ */
 const droneGrp = new THREE.Group();
 droneGrp.visible = false;
 scene.add(droneGrp);
-
 const dBody = box(.7,.3,1.9,0x1A1A1A); droneGrp.add(dBody);
 const dCam = box(.45,.35,.35,0x0D0D0D); dCam.position.z=-1.0; droneGrp.add(dCam);
 const dLens = box(.2,.2,.05,0x3399FF,0x002244); dLens.position.set(0,-.18,-.95); droneGrp.add(dLens);
-
 const PROP_MESHES = [];
 for(const [dx,dz] of [[-1.1,-1.1],[1.1,-1.1],[-1.1,1.1],[1.1,1.1]]){
   const arm = box(.22,.1,3,0x262626);
@@ -431,14 +388,10 @@ for(const [dx,dz] of [[-1.1,-1.1],[1.1,-1.1],[-1.1,1.1],[1.1,1.1]]){
 }
 const dLight = new THREE.PointLight(0xFF4400,2,25); droneGrp.add(dLight);
 
-/* ═══════════════════════════════════════════════
-    OYUN MANTIĞI
-═══════════════════════════════════════════════ */
 let isPlaying=false, isShopOpen=false, gameRunning=false;
 let points=0, battery=100, shopPoints=0;
 let ringsCollected=0;
 let highScore = parseInt(localStorage.getItem('ufkaKanat_v2')||'0');
-
 function loadShopPoints() {
   shopPoints = parseInt(localStorage.getItem('ufkaKanat_shopPts') || '0');
 }
@@ -446,18 +399,16 @@ loadShopPoints();
 
 let upSpeed=1.0, upBattery=1.0, upTurn=1.0;
 let speedBuyCount=0, batBuyCount=0, turnBuyCount=0;
-
 const pos = new THREE.Vector3(0,10,0);
 const vel = new THREE.Vector3(0,0,0);
 let heading = 0;
 const keys = {};
-
 let audioCtx=null, engineGain=null;
+
 function initAudio(){
   try{
     audioCtx = THREE.AudioContext.getContext();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    
     engineGain = audioCtx.createGain();
     engineGain.gain.value = 0;
     const comp = audioCtx.createDynamicsCompressor();
@@ -469,12 +420,10 @@ function initAudio(){
       const gn = audioCtx.createGain(); gn.gain.value = g;
       osc.connect(gn); gn.connect(engineGain); osc.start();
     });
-    
-    // Müzik kontrolü
     if(isMusicLoaded && !gameMusic.isPlaying) {
         gameMusic.play();
     }
-  }catch(e){ console.warn('Audio Fail',e); }
+  }catch(e){ console.warn('Ses başlatılamadı',e); }
 }
 
 const PREVENT = new Set(['w','s','a','d',' ','control','arrowup','arrowdown','arrowleft','arrowright']);
@@ -511,12 +460,8 @@ function startGame(){
   createRings();
   $('menu').style.display='none'; $('gameover').style.display='none';
   $('hud').style.display='flex'; $('cross').style.display='block';
-  
   if(engineGain) engineGain.gain.setTargetAtTime(.42, audioCtx.currentTime, .2);
-  
-  // Müziği her başlangıçta kontrol et
   if(isMusicLoaded && !gameMusic.isPlaying) gameMusic.play();
-  
   showNotif('UÇUŞ BAŞLIYOR!','#00E5FF');
 }
 
@@ -533,9 +478,8 @@ function doGameOver(){
   $('station-alert').style.display='none'; $('bat-warn').style.display='none';
   if(isShopOpen) closeShop();
   $('go-pts').textContent = `PUAN: ${Math.floor(points)}`;
-  $('go-hs').textContent  = `EN İYİ: ${highScore}`;
+  $('go-hs').textContent = `EN İYİ: ${highScore}`;
   $('gameover').style.display='flex';
-  
   if(engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, .4);
 }
 
@@ -568,9 +512,6 @@ function buyUpgrade(type,cost){
   } else showNotif('YETERSİZ PUAN!','#FF3333');
 }
 
-/* ═══════════════════════════════════════════════
-    GEMINI AI ENTEGRASYONU
-═══════════════════════════════════════════════ */
 async function getAIFeedback() {
   const feedbackEl = $('ai-feedback');
   feedbackEl.textContent = "✨ Yapay Zeka verileri analiz ediyor...";
@@ -586,24 +527,18 @@ async function getAIFeedback() {
   } catch (error) { feedbackEl.textContent = "⚠️ Telemetri bağlantısı kesildi."; }
 }
 
-/* ═══════════════════════════════════════════════
-    LOOP & RENDER (XR SETANIMATE)
-═══════════════════════════════════════════════ */
 const _camTarget = new THREE.Vector3();
 const _camWanted = new THREE.Vector3();
 const _accel = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
-
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05);
   radar.rotation.y += 1.6*dt;
   beacon.material.color.setHex(Math.sin(clock.elapsedTime*4)>.3 ? 0x00FFFF : 0x004444);
-
   if(isPlaying && gameRunning){
     _accel.set(0, -9.81, 0);
     const hr = heading * Math.PI/180;
     _fwd.set(-Math.sin(hr), 0, -Math.cos(hr));
-
     const session = renderer.xr.getSession();
     if (session) {
       for (const source of session.inputSources) {
@@ -622,39 +557,31 @@ renderer.setAnimationLoop(() => {
         }
       }
     }
-
     if(keys['w']||keys['arrowup']) _accel.addScaledVector(_fwd, 75*upSpeed);
     if(keys['s']||keys['arrowdown']) _accel.addScaledVector(_fwd, -45*upSpeed);
     if(keys['a']||keys['arrowleft']) heading += (195*upTurn)*dt;
     if(keys['d']||keys['arrowright']) heading -= (195*upTurn)*dt;
     if(keys[' ']) _accel.y += 55;
     if(keys['control']) _accel.y -= 55;
-
     const drag = vel.clone().multiplyScalar(1.8);
     _accel.sub(drag);
     vel.addScaledVector(_accel, dt);
     pos.addScaledVector(vel, dt);
-
     if(Math.abs(pos.x - STATION.x)<8 && Math.abs(pos.z - STATION.z)<8){
       if(pos.y < 12){ pos.y=12; if(vel.y<0) vel.y=0; }
     }
     if(pos.y < 0.5){ doGameOver(); return; }
-
     droneGrp.position.copy(pos);
     droneGrp.rotation.y = hr;
     PROP_MESHES.forEach(p=>p.rotation.y += 60*dt);
-
     battery -= dt * 0.7;
     if(battery <= 0) doGameOver();
-
     $('score-t').textContent = `PUAN: ${Math.floor(points)}`;
     $('bat-t').textContent = `BATARYA: %${Math.max(0,Math.floor(battery))}`;
     $('alt-t').textContent = `İRTİFA: ${Math.floor(pos.y)}m`;
-
     const distSt = pos.distanceTo(STATION);
     if(distSt < 22){ battery = 100*upBattery; if(!isShopOpen) toggleShop(); } 
     else if(isShopOpen && distSt > 30) closeShop();
-
     RING_DATA.forEach(ring=>{
       if(!ring.userData.active) return;
       if(ring.userData.label) ring.userData.label.lookAt(camera.position);
@@ -666,7 +593,6 @@ renderer.setAnimationLoop(() => {
         showNotif(ring.userData.isBlue ? 'BONUS!' : '+1000');
       }
     });
-
     const camHr = heading * Math.PI/180;
     _camWanted.set(pos.x + Math.sin(camHr)*26, pos.y + 11, pos.z + Math.cos(camHr)*26);
     camera.position.lerp(_camWanted, 8*dt);
@@ -679,7 +605,6 @@ renderer.setAnimationLoop(() => {
   }
   renderer.render(scene, camera);
 });
-
 updateHs();
 </script>
 </body>
