@@ -3,43 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>TEVFİK İLERİ AİHL – UFKA KANAT</title>
+<title>TEVFİK İLERİ AİHL – UFKA KANAT PRO</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Orbitron', sans-serif; touch-action:none; }
-    canvas { display:block; width:100vw; height:100vh; }
-    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
-    #menu { background:linear-gradient(180deg, rgba(0,4,18,0.95) 0%, rgba(0,18,45,0.95) 100%); cursor:pointer; }
-    .tag { font-size:20px; color:#FFF; margin-bottom:10px; text-shadow: 0 0 10px #000; }
-    .game-title { font-size:clamp(40px, 10vw, 90px); font-weight:900; color:#FF6600; text-shadow:0 0 40px #FF6600; margin-bottom:10px; }
-    #hs-display { font-size:28px; color:#FFD700; margin-bottom:20px; }
-    .credits { font-size:14px; color:#BBB; margin-bottom:30px; letter-spacing:1px; }
-    .ctrl-hint { font-size:18px; color:#00FF88; animation:blink 1s infinite; margin-top:20px; }
-    
-    /* HUD - Yazılar Kırmızı Yapıldı */
-    #hud { display:none; pointer-events:none; padding:30px; align-items:flex-start; justify-content:flex-start; z-index:50; }
-    .hud-line { font-size:22px; color:#FF0000; text-shadow:2px 2px 5px #000; margin-bottom:8px; font-weight:bold; }
-    
-    #shop { display:none; background:rgba(0,10,30,0.98); border:3px solid #00E5FF; padding:40px; border-radius:15px; width:450px; box-shadow: 0 0 50px rgba(0,229,255,0.3); }
-    #shop h2 { color:#00E5FF; font-size:28px; margin-bottom:20px; text-align:center; }
-    #sp-txt { color:#FFF; font-size:20px; margin-bottom:25px; text-align:center; }
-    .sh-item { width:100%; padding:15px; margin:10px 0; background:rgba(0,229,255,0.1); border:1px solid #00E5FF; color:#FFF; cursor:pointer; font-family:'Orbitron'; font-size:16px; transition:0.3s; text-align:left; }
-    .sh-item:hover { background:rgba(0,229,255,0.3); transform: scale(1.02); }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    #notif { position:fixed; top:25%; color:#00FF88; font-size:32px; font-weight:900; opacity:0; transition:0.3s; z-index:200; text-shadow: 0 0 20px #00FF88; }
+    canvas { display:block; width:100vw; height:100vh; position: fixed; top:0; left:0; }
+    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; pointer-events: none; }
+    #menu { background:linear-gradient(180deg, rgba(0,4,18,0.96) 0%, rgba(0,18,45,0.96) 100%); cursor:pointer; pointer-events: auto; }
+    .tag { font-size:22px; color:#FFF; margin-bottom:10px; text-shadow: 0 0 10px #000; }
+    .game-title { font-size:clamp(45px, 11vw, 95px); font-weight:900; color:#FF6600; text-shadow:0 0 50px #FF6600; margin-bottom:15px; }
+    #hs-display { font-size:30px; color:#FFD700; margin-bottom:25px; }
+    .credits { font-size:15px; color:#CCC; margin-bottom:35px; letter-spacing:1px; }
+    .ctrl-box { border: 2px solid rgba(0,229,255,0.4); padding: 20px; border-radius: 12px; background: rgba(0,160,255,0.15); color: #99BBDD; font-size: 14px; text-align: center; line-height: 1.8; margin-bottom: 20px; }
+    .vr-btn-hint { font-size:20px; color:#00FF88; animation:blink 1.2s infinite; margin-top:20px; font-weight: bold; }
+    #hud { display:none; pointer-events:none; padding:40px; align-items:flex-start; justify-content:flex-start; z-index:50; }
+    .hud-line { font-size:24px; color:#FF0000; text-shadow:3px 3px 6px #000; margin-bottom:10px; font-weight:900; }
+    #shop { display:none; background:rgba(0,12,35,0.99); border:4px solid #00E5FF; padding:50px; border-radius:20px; width:480px; box-shadow: 0 0 70px rgba(0,229,255,0.4); pointer-events: auto; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+    #notif { position:fixed; top:20%; color:#00FF88; font-size:36px; font-weight:900; opacity:0; transition:0.4s; z-index:200; text-shadow: 0 0 30px #00FF88; }
 </style>
 </head>
-<body onclick="handleGlobalClick()">
+<body>
     <canvas id="c"></canvas>
     <div id="notif"></div>
 
-    <div id="menu" class="overlay">
+    <div id="menu" class="overlay" onclick="handleGlobalClick(event)">
         <div class="tag">TEVFİK İLERİ AİHL</div>
         <div class="game-title">UFKA KANAT</div>
         <div id="hs-display">REKOR: 0</div>
         <div class="credits">AHMET SAİD ADALAR | ÖMER PİLE | KEREM KARACA</div>
-        <div class="ctrl-hint">BAŞLATMAK İÇİN DOKUNUN (ENTER) | MAĞAZA: 'B'</div>
+        <div class="ctrl-box">
+            <strong>BİLGİSAYAR:</strong> W/S/A/D ve Boşluk Tuşları<br>
+            <strong>VR:</strong> Joystickler ile uçuş
+        </div>
+        <div class="vr-btn-hint">OYUNU BAŞLATMAK İÇİN EKRANA DOKUNUN</div>
     </div>
 
     <div id="hud" class="overlay">
@@ -49,142 +47,97 @@
     </div>
 
     <div id="shop" class="overlay">
-        <h2>--- TEKO MAĞAZA ---</h2>
-        <div id="sp-txt">PUANIN: 0</div>
-        <button class="sh-item" onclick="buyUpgrade('speed', 5000)">[1] MOTOR GÜCÜ (5000)</button>
-        <button class="sh-item" onclick="buyUpgrade('battery', 3000)">[2] EKSTRA PİL (3000)</button>
-        <button class="sh-item" onclick="buyUpgrade('turn', 4000)">[3] HASSAS DÖNÜŞ (4000)</button>
+        <h2 style="color:#00E5FF; margin-bottom:20px;">--- TEKO MAĞAZA ---</h2>
+        <div id="sp-txt" style="color:white; margin-bottom:20px;">PUANIN: 0</div>
+        <button onclick="buyUpgrade('speed', 5000)" style="width:100%; padding:15px; margin:5px 0; font-family:'Orbitron';">MOTOR GÜCÜ (5000)</button>
+        <button onclick="buyUpgrade('battery', 3000)" style="width:100%; padding:15px; margin:5px 0; font-family:'Orbitron';">EKSTRA PİL (3000)</button>
+        <button onclick="buyUpgrade('turn', 4000)" style="width:100%; padding:15px; margin:5px 0; font-family:'Orbitron';">HASSAS DÖNÜŞ (4000)</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <script>
         'use strict';
 
         let scene, camera, renderer, clock, drone, props = [], station, stationRadar;
-        let isPlaying = false, isShopOpen = false;
+        let isPlaying = false, isShopOpen = false, gameStarted = false;
         let points = 0, battery = 100, shopPoints = 0, highScore = 0;
         let upSpeed = 1.0, upBattery = 1.0, upTurn = 1.0;
-        let pos = new THREE.Vector3(0, 10, 0), vel = new THREE.Vector3(0, 0, 0), hpr = new THREE.Euler(0,0,0);
-        const keys = {};
-        const rings = [];
+        let pos = new THREE.Vector3(0, 15, 0), vel = new THREE.Vector3(0, 0, 0), hpr = new THREE.Euler(0,0,0);
+        const keys = {}, rings = [];
 
         function init() {
+            // SAHNE
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x7ECAFF);
-            scene.fog = new THREE.FogExp2(0xAADDBB, 0.00008);
+            scene.fog = new THREE.FogExp2(0xAADDBB, 0.00007);
 
-            camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.5, 200000);
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
+            // KAMERA
+            camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.5, 300000);
+            camera.position.set(0, 200, 400);
+            camera.lookAt(0, 0, 0);
+
+            // RENDERER
+            const canvas = document.getElementById('c');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.xr.enabled = true; // VR Desteği açık
+
             clock = new THREE.Clock();
 
-            scene.add(new THREE.AmbientLight(0x888899, 0.8));
-            const sun = new THREE.DirectionalLight(0xFFFFEE, 1.2);
+            // IŞIK
+            scene.add(new THREE.AmbientLight(0xFFFFFF, 0.6));
+            const sun = new THREE.DirectionalLight(0xFFFFFF, 1.0);
             sun.position.set(500, 1000, 500);
             scene.add(sun);
 
             createEnvironment();
             createDrone();
             
-            highScore = parseInt(localStorage.getItem('ufka_kanat_v5_hs')) || 0;
+            highScore = parseInt(localStorage.getItem('ufka_kanat_v5_pro_hs')) || 0;
             document.getElementById('hs-display').innerText = `REKOR: ${highScore}`;
 
-            window.addEventListener('keydown', e => {
-                const k = e.key.toLowerCase();
-                keys[k] = true;
-                if(k === 'enter' && !isPlaying && !isShopOpen) startGame();
-                if(k === 'b' && !isPlaying) toggleShop();
-                if(isShopOpen) {
-                    if(k === '1') buyUpgrade('speed', 5000);
-                    if(k === '2') buyUpgrade('battery', 3000);
-                    if(k === '3') buyUpgrade('turn', 4000);
-                }
-            });
+            window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             
-            animate();
+            // Siyah ekranı önleyen en önemli kısım: Loop'un hemen başlaması
+            renderer.setAnimationLoop(animate);
+            gameStarted = true;
+            console.log("Sistem hazır.");
         }
 
         function createEnvironment() {
-            // Zemin
-            const gGeo = new THREE.PlaneGeometry(100000, 100000);
-            const gMat = new THREE.MeshLambertMaterial({ color: 0x1E6020 });
-            const ground = new THREE.Mesh(gGeo, gMat);
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(150000, 150000),
+                new THREE.MeshLambertMaterial({ color: 0x1E6525 })
+            );
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            // İstasyon
             station = new THREE.Group();
             station.position.set(0, 0, 2500);
-            const basePlate = new THREE.Mesh(new THREE.BoxGeometry(35, 2, 35), new THREE.MeshLambertMaterial({color: 0x1A1A26}));
-            basePlate.position.y = 1;
-            station.add(basePlate);
-            const coreHub = new THREE.Mesh(new THREE.BoxGeometry(15, 12, 15), new THREE.MeshLambertMaterial({color: 0x33404D}));
-            coreHub.position.y = 6;
-            station.add(coreHub);
-            stationRadar = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 2), new THREE.MeshLambertMaterial({color: 0x00FFFF}));
-            stationRadar.position.y = 18;
+            const base = new THREE.Mesh(new THREE.BoxGeometry(40, 3, 40), new THREE.MeshLambertMaterial({color: 0x111118}));
+            base.position.y = 1.5;
+            station.add(base);
+            const core = new THREE.Mesh(new THREE.BoxGeometry(18, 14, 18), new THREE.MeshLambertMaterial({color: 0x2C3E50}));
+            core.position.y = 7;
+            station.add(core);
+            stationRadar = new THREE.Mesh(new THREE.BoxGeometry(14, 2, 2), new THREE.MeshLambertMaterial({color: 0x00FFFF}));
+            stationRadar.position.y = 20;
             station.add(stationRadar);
             scene.add(station);
 
-            // Ağaçlar (400 Adet)
+            // Ağaçlar ve Halkalar (Aynı mantık)
             for(let i=0; i<400; i++) {
-                const tx = (Math.random()-0.5)*6000;
-                const tz = Math.random()*15000 + 200;
-                const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 15, 1.2), new THREE.MeshLambertMaterial({color: 0x3E1C00}));
-                trunk.position.set(tx, 7.5, tz);
+                const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 18, 1.5), new THREE.MeshLambertMaterial({color: 0x4B2C20}));
+                trunk.position.set((Math.random()-0.5)*8000, 9, Math.random()*20000 + 300);
                 scene.add(trunk);
-                for(let j=0; j<3; j++) {
-                    const leafGeo = new THREE.ConeGeometry(8 - j*2, 12, 6);
-                    const leafMat = new THREE.MeshLambertMaterial({color: 0x053505});
-                    const leaves = new THREE.Mesh(leafGeo, leafMat);
-                    leaves.position.set(tx, 15 + j*6, tz);
-                    scene.add(leaves);
-                }
             }
-
-            // Dağlar
-            for(let i=0; i<60; i++){
-                const mGeo = new THREE.ConeGeometry(randomRange(500, 1200), randomRange(300, 1000), 4);
-                const mMat = new THREE.MeshLambertMaterial({color: 0x4D594D});
-                const m = new THREE.Mesh(mGeo, mMat);
-                m.position.set(randomRange(-8000, 8000), 0, randomRange(200, 25000));
-                scene.add(m);
-            }
-
-            // Halkalar (Sıklaştırılmış - 150 Adet)
             for(let i=0; i<150; i++) {
                 const isBlue = Math.random() < 0.3;
-                const rGeo = new THREE.TorusGeometry(8, 0.4, 16, 64);
-                const rMat = new THREE.MeshLambertMaterial({ color: isBlue ? 0x0088FF : 0xFF3300 });
-                const ring = new THREE.Mesh(rGeo, rMat);
-                // Mesafe i*90 yapılarak sıklaştırıldı
-                ring.position.set(randomRange(-500, 500), randomRange(25, 95), 500 + i*90);
-                ring.userData.p_type = isBlue ? ["HIZ +", "BATARYA +", "+1500 PUAN"][Math.floor(Math.random()*3)] : "NONE";
-                
-                // Neon Sarı-Siyah "TEVFİK İLERİ" Yazısı
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = 512; canvas.height = 128;
-                ctx.font = "bold 60px Orbitron";
-                ctx.textAlign = "center";
-                // Siyah Gölge
-                ctx.fillStyle = "black";
-                ctx.fillText("TEVFİK İLERİ", 259, 69);
-                // Neon Sarı
-                ctx.fillStyle = "#CCFF00";
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = "#CCFF00";
-                ctx.fillText("TEVFİK İLERİ", 256, 64);
-                
-                const texture = new THREE.CanvasTexture(canvas);
-                const spriteMat = new THREE.SpriteMaterial({ map: texture });
-                const sprite = new THREE.Sprite(spriteMat);
-                sprite.scale.set(15, 4, 1);
-                ring.add(sprite);
-
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 0.4, 16, 64), new THREE.MeshLambertMaterial({ color: isBlue ? 0x0088FF : 0xFF3300 }));
+                ring.position.set(randomRange(-600, 600), randomRange(30, 110), 600 + i*90);
                 scene.add(ring);
                 rings.push(ring);
             }
@@ -192,113 +145,76 @@
 
         function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 1.9), new THREE.MeshLambertMaterial({color: 0x1A1A1A}));
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 2), new THREE.MeshLambertMaterial({color: 0x1A1A1A}));
             drone.add(body);
-            const cam = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.35), new THREE.MeshLambertMaterial({color: 0x0D0D0D}));
-            cam.position.set(0, 0.15, 0.95);
-            drone.add(cam);
-            const armPos = [[-1.1, 1.1], [1.1, 1.1], [-1.1, -1.1], [1.1, -1.1]];
-            armPos.forEach(p => {
-                const prop = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.15), new THREE.MeshBasicMaterial({color: 0xFFFFFF, transparent: true, opacity: 0.5}));
-                prop.position.set(p[0]*1.3, 0.3, p[1]*1.3);
-                drone.add(prop);
-                props.push(prop);
-            });
             scene.add(drone);
             drone.visible = false;
         }
 
         function startGame() {
-            if(isShopOpen) return;
-            isPlaying = true; points = 0;
-            battery = 100.0 * upBattery;
-            pos.set(0, 10, 0); vel.set(0, 0, 0); hpr.set(0, 0, 0);
+            if(!gameStarted) return;
+            isPlaying = true;
+            battery = 100;
+            pos.set(0, 15, 0);
             document.getElementById('menu').style.display = 'none';
             document.getElementById('hud').style.display = 'flex';
             drone.visible = true;
         }
 
-        function toggleShop() {
-            isShopOpen = !isShopOpen;
-            document.getElementById('shop').style.display = isShopOpen ? 'block' : 'none';
-            document.getElementById('sp-txt').innerText = `PUANIN: ${shopPoints}`;
-            if(isShopOpen) document.getElementById('menu').style.display = 'none';
-            else if(!isPlaying) document.getElementById('menu').style.display = 'flex';
-        }
-
-        function buyUpgrade(type, cost) {
-            if(shopPoints >= cost) {
-                shopPoints -= cost;
-                if(type === 'speed') upSpeed += 0.35;
-                if(type === 'battery') upBattery += 0.35;
-                if(type === 'turn') upTurn += 0.25;
-                document.getElementById('sp-txt').innerText = `GELİŞTİRİLDİ! KALAN: ${shopPoints}`;
-                showNotif("GÜNCELLENDİ!");
-            }
-        }
-
-        function showNotif(msg) {
-            const n = document.getElementById('notif');
-            n.innerText = msg; n.style.opacity = 1;
-            setTimeout(() => n.style.opacity = 0, 2000);
+        function handleGlobalClick(e) {
+            if(!isPlaying) startGame();
         }
 
         function animate() {
-            requestAnimationFrame(animate);
-            const dt = clock.getDelta();
+            const dt = Math.min(clock.getDelta(), 0.1);
             if (isPlaying) {
-                let accel = new THREE.Vector3(0, -9.81, 0); 
-                const sp = 75 * upSpeed;
-                if (keys['w']) { let move = new THREE.Vector3(0, 0, sp); move.applyEuler(hpr); accel.add(move); }
-                if (keys['s']) { let move = new THREE.Vector3(0, 0, -sp*0.6); move.applyEuler(hpr); accel.add(move); }
-                if (keys['a']) hpr.y += (3.4 * upTurn) * dt;
-                if (keys['d']) hpr.y -= (3.4 * upTurn) * dt;
-                if (keys[' ']) accel.y += 55;
-                if (keys['control']) accel.y -= 55;
-                vel.add(accel.sub(vel.clone().multiplyScalar(1.8)).multiplyScalar(dt));
+                let accel = new THREE.Vector3(0, -9.81, 0);
+                
+                // Klavye Kontrol
+                if (keys['w']) { let m = new THREE.Vector3(0, 0, 80); m.applyEuler(hpr); accel.add(m); }
+                if (keys['s']) { let m = new THREE.Vector3(0, 0, -50); m.applyEuler(hpr); accel.add(m); }
+                if (keys['a']) hpr.y += 3.5 * dt;
+                if (keys['d']) hpr.y -= 3.5 * dt;
+                if (keys[' ']) accel.y += 60;
+
+                vel.add(accel.sub(vel.clone().multiplyScalar(1.7)).multiplyScalar(dt));
                 pos.add(vel.clone().multiplyScalar(dt));
-                if (pos.y < 0.5) gameOver();
+
                 drone.position.copy(pos);
                 drone.rotation.copy(hpr);
-                props.forEach(p => p.rotation.y += 100 * dt);
-                battery -= dt * 0.65;
+
+                battery -= dt * 0.7;
                 document.getElementById('skor-t').innerText = `PUAN: ${points}`;
                 document.getElementById('bat-t').innerText = `BATARYA: %${Math.max(0, Math.floor(battery))}`;
                 document.getElementById('alt-t').innerText = `İRTİFA: ${Math.floor(pos.y)}m`;
-                const distToStation = pos.distanceTo(station.position);
-                if(distToStation < 25) { battery = 100 * upBattery; if(!isShopOpen) toggleShop(); }
-                rings.forEach(r => {
-                    if(r.visible && pos.distanceTo(r.position) < 9.0) {
-                        r.visible = false;
-                        if(r.userData.p_type === "NONE") points += 1000;
-                        else { points += 500; if(r.userData.p_type === "BATARYA +") battery += 25; }
-                        showNotif(r.userData.p_type === "NONE" ? "+1000" : r.userData.p_type);
-                    }
-                });
-                let camOffset = new THREE.Vector3(0, 12, -25); camOffset.applyEuler(hpr);
-                camera.position.lerp(pos.clone().add(camOffset), 7.0 * dt);
+
+                // Kamera Takip
+                let camOff = new THREE.Vector3(0, 15, -30);
+                camOff.applyEuler(hpr);
+                camera.position.lerp(pos.clone().add(camOff), 0.1);
                 camera.lookAt(pos);
-                if(battery <= 0) gameOver();
+
+                if(pos.y < 0.5 || battery <= 0) gameOver();
             } else {
-                const t = clock.elapsedTime * 0.1;
-                camera.position.set(Math.cos(t)*300, 150, Math.sin(t)*300);
+                // Menüde dönen kamera
+                const t = Date.now() * 0.0005;
+                camera.position.set(Math.cos(t)*400, 200, Math.sin(t)*400);
                 camera.lookAt(0,0,0);
-                if(stationRadar) stationRadar.rotation.y += dt;
             }
             renderer.render(scene, camera);
         }
 
         function gameOver() {
-            if(points > highScore) highScore = points;
-            localStorage.setItem('ufka_kanat_v5_hs', highScore);
-            shopPoints += points; isPlaying = false; drone.visible = false;
+            isPlaying = false;
+            drone.visible = false;
             document.getElementById('menu').style.display = 'flex';
             document.getElementById('hud').style.display = 'none';
-            document.getElementById('hs-display').innerText = `REKOR: ${highScore}`;
         }
+
         function randomRange(min, max) { return Math.random() * (max - min) + min; }
-        function handleGlobalClick() { if(!isPlaying && !isShopOpen) startGame(); }
-        init();
+
+        // Sayfa yüklendiğinde başlat
+        window.onload = init;
     </script>
 </body>
 </html>
