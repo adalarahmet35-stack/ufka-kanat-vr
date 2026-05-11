@@ -1,226 +1,194 @@
+```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>UFKA KANAT PRO V13 - TEKNOFEST</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/VRButton.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/XRControllerModelFactory.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFKA KANAT VR - TEKNOFEST</title>
     <style>
-        body { margin: 0; background: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; }
+        body { margin: 0; background-color: #87CEEB; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: radial-gradient(circle, #001a33 0%, #000 100%); z-index: 1000; color: #00FFCC;
-            text-align: center;
+            background: radial-gradient(circle, #001a33 0%, #000 100%); z-index: 2000; color: #00FFCC;
         }
         .btn-start {
-            padding: 18px 45px; font-size: 22px; background: transparent; color: #00FFCC;
-            border: 2px solid #00FFCC; border-radius: 5px; cursor: pointer; font-weight: bold;
-            transition: 0.3s; box-shadow: 0 0 15px rgba(0,255,204,0.3);
+            padding: 20px 60px; font-size: 24px; background: transparent; color: #00FFCC;
+            border: 3px solid #00FFCC; border-radius: 10px; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 2px;
         }
-        .btn-start:hover { background: #00FFCC; color: #000; box-shadow: 0 0 30px #00FFCC; }
-        
-        /* VR İçinde Görünecek HUD Tasarımı (Fallback için) */
-        #hud-container {
-            position: fixed; top: 20px; left: 20px; color: #00FFCC; z-index: 100;
-            pointer-events: none; display: none;
-        }
-        .hud-item { background: rgba(0,0,0,0.5); padding: 10px; margin-bottom: 5px; border-left: 3px solid #FF6600; }
     </style>
 </head>
 <body>
     <div id="overlay">
-        <h1 style="font-size: 3.5rem; letter-spacing: 10px; margin-bottom: 0;">UFKA KANAT</h1>
-        <p style="color: #FF6600; margin-bottom: 40px;">TEKNOFEST V13 | OTONOM VE MANUEL DRONE SİMÜLASYONU</p>
-        <button class="btn-start" id="start-trigger">SİSTEMLERİ BAŞLAT</button>
-        <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.7;">Quest 2 Kontrolcüleri otomatik olarak tanımlanır.</p>
+        <h1 style="font-size: 3rem; letter-spacing: 10px;">UFKA KANAT</h1>
+        <p style="color: #FF6600;">VR DOĞA SİMÜLASYONU</p>
+        <button class="btn-start" id="start-btn">SİSTEMLERİ BAŞLAT</button>
+        <p style="font-size: 0.9rem; margin-top: 20px;">PC: WASD | VR: Tetik ve Joystick</p>
     </div>
 
-    <div id="hud-container">
-        <div class="hud-item">HIZ: <span id="val-speed">0</span> m/s</div>
-        <div class="hud-item">İRTİFA: <span id="val-alt">0</span> m</div>
-        <div class="hud-item">BATARYA: %<span id="val-bat">100</span></div>
-    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/VRButton.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/XRControllerModelFactory.js"></script>
 
     <script>
-        // --- DEĞİŞKENLER ---
-        let scene, camera, renderer, drone, clock, particles;
-        let inputState = { throttle: 0, yaw: 0, vertical: 0 };
-        let stats = { speed: 0, alt: 0, battery: 100 };
+        let scene, camera, renderer, drone, clock;
         let velocity = new THREE.Vector3();
         let rotationY = 0;
+        let isPlaying = false;
+        const keys = {};
 
-        const CONFIG = { acceleration: 50, rotSpeed: 3.0, drag: 0.97, gravity: 0.15 };
+        // VR İÇİ GÖSTERGELER (3D HUD)
+        let hudGroup, hudText;
 
-        // --- BAŞLATICI ---
-        init();
+        window.onload = () => {
+            init();
+            animate();
+        };
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x00050a);
-            scene.fog = new THREE.Fog(0x00050a, 50, 1500);
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 500);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
-
-            // Standart VR Butonu
             document.body.appendChild(VRButton.createButton(renderer));
 
             clock = new THREE.Clock();
 
-            // Aydınlatma
-            const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
-            scene.add(ambient);
-            const mainLight = new THREE.PointLight(0xffffff, 1.5);
-            mainLight.position.set(50, 100, 50);
-            scene.add(mainLight);
+            // IŞIKLANDIRMA
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+            sun.position.set(50, 100, 50);
+            scene.add(sun);
 
-            createWorld();
+            createLandscape();
             createDrone();
-            setupXR();
+            create3DHUD();
 
-            document.getElementById('start-trigger').addEventListener('click', () => {
+            // KONTROLLER
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+            document.getElementById('start-btn').onclick = () => {
                 document.getElementById('overlay').style.display = 'none';
-                document.getElementById('hud-container').style.display = 'block';
-            });
+                isPlaying = true;
+            };
 
-            renderer.setAnimationLoop(renderLoop);
+            window.addEventListener('resize', onWindowResize);
         }
 
-        function createWorld() {
-            // Teknofest Grid Zemini
-            const grid = new THREE.GridHelper(2000, 80, 0x00ffcc, 0x001122);
-            scene.add(grid);
+        function createLandscape() {
+            // YEŞİL ZEMİN
+            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x348C31 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
 
-            // Uzay Tozu / Partiküller (Hız hissi için)
-            const pGeo = new THREE.BufferGeometry();
-            const pPos = [];
-            for(let i=0; i<2000; i++) {
-                pPos.push((Math.random()-0.5)*1000, Math.random()*500, (Math.random()-0.5)*1000);
+            // AĞAÇLAR
+            for (let i = 0; i < 120; i++) {
+                const x = (Math.random() - 0.5) * 400;
+                const z = (Math.random() - 0.5) * 400;
+                
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5), new THREE.MeshStandardMaterial({color: 0x5D4037}));
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 8), new THREE.MeshStandardMaterial({color: 0x1B5E20}));
+                trunk.position.set(x, 0.75, z);
+                leaves.position.set(x, 3, z);
+                scene.add(trunk, leaves);
             }
-            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
-            particles = new THREE.Points(pGeo, new THREE.PointsMaterial({color: 0x00ffcc, size: 0.5}));
-            scene.add(particles);
+
+            // DAĞLAR
+            for (let i = 0; i < 10; i++) {
+                const mGeo = new THREE.ConeGeometry(40, 60, 4);
+                const mMat = new THREE.MeshStandardMaterial({ color: 0x616161 });
+                const m = new THREE.Mesh(mGeo, mMat);
+                m.position.set((Math.random()-0.5)*600, 25, (Math.random()-0.5)*600);
+                scene.add(m);
+            }
         }
 
         function createDrone() {
             drone = new THREE.Group();
-            
-            // Gövde
-            const body = new THREE.Mesh(
-                new THREE.BoxGeometry(0.8, 0.2, 1.2),
-                new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8})
-            );
-            
-            // Kollar ve Işıklar
-            const armGeo = new THREE.BoxGeometry(1.5, 0.05, 0.05);
-            const arm1 = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({color: 0x222222}));
-            arm1.rotation.y = Math.PI / 4;
-            
-            const led = new THREE.Mesh(
-                new THREE.SphereGeometry(0.1, 8, 8),
-                new THREE.MeshBasicMaterial({color: 0x00ff00})
-            );
-            led.position.set(0, 0, 0.6);
-            
-            drone.add(body, arm1, led);
-            drone.position.y = 2;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x212121 }));
+            const front = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            front.position.z = -0.4;
+            drone.add(body, front);
+            drone.position.y = 5;
             scene.add(drone);
         }
 
-        function setupXR() {
-            const factory = new THREE.XRControllerModelFactory();
-            
-            for(let i=0; i<2; i++) {
-                const controller = renderer.xr.getController(i);
-                controller.addEventListener('connected', (e) => {
-                    console.log(`${e.data.handedness} bağlandı`);
-                });
-                scene.add(controller);
-
-                const grip = renderer.xr.getControllerGrip(i);
-                grip.add(factory.createControllerModel(grip));
-                scene.add(grip);
-            }
+        // VR İÇİNDE GÖRÜNEN GÖSTERGE SİSTEMİ
+        function create3DHUD() {
+            hudGroup = new THREE.Group();
+            // HUD'ı dronun biraz önünde ve üstünde tutacağız
+            scene.add(hudGroup);
         }
 
-        function processVRInputs() {
-            const session = renderer.xr.getSession();
-            if (!session) return;
-
-            inputState.throttle = 0;
-            inputState.vertical = 0;
-            inputState.yaw = 0;
-
-            for (const source of session.inputSources) {
-                if (!source.gamepad) continue;
-                const b = source.gamepad.buttons;
-                const a = source.gamepad.axes;
-
-                if (source.handedness === 'right') {
-                    if (b[0].pressed) inputState.throttle = 1; // Tetik: Gaz
-                    if (b[5].pressed) inputState.vertical = -1; // B: Aşağı
-                } else if (source.handedness === 'left') {
-                    if (b[4].pressed) inputState.vertical = 1; // A: Yukarı
-                    if (Math.abs(a[2]) > 0.1) inputState.yaw = -a[2]; // Analog: Dönüş
-                }
-            }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function updatePhysics(dt) {
-            // Motor Gücü
-            if (inputState.throttle && stats.battery > 0) {
-                const dir = new THREE.Vector3(0, 0, -1).applyEuler(drone.rotation);
-                velocity.add(dir.multiplyScalar(CONFIG.acceleration * dt));
-                stats.battery -= 0.05; // Gaz verdikçe pil harca
-            }
-
-            // Yerçekimi ve İrtifa
-            velocity.y += (inputState.vertical * 25 * dt) - (CONFIG.gravity * dt);
-            
-            // Sürtünme
-            velocity.multiplyScalar(CONFIG.drag);
-
-            // Dönüş
-            rotationY += inputState.yaw * CONFIG.rotSpeed * dt;
-            drone.rotation.y = rotationY;
-
-            // Hareket Uygula
-            drone.position.add(velocity.clone().multiplyScalar(dt));
-
-            // Zemin Sınırı
-            if (drone.position.y < 0.1) {
-                drone.position.y = 0.1;
-                velocity.y = 0;
-            }
-
-            // İstatistikleri Güncelle
-            stats.speed = (velocity.length() * 3.6).toFixed(1);
-            stats.alt = drone.position.y.toFixed(1);
-            
-            // HUD Güncelle (Ekranda görünmesi için)
-            document.getElementById('val-speed').innerText = stats.speed;
-            document.getElementById('val-alt').innerText = stats.alt;
-            document.getElementById('val-bat').innerText = Math.max(0, Math.floor(stats.battery));
+        function animate() {
+            renderer.setAnimationLoop(renderLoop);
         }
 
         function renderLoop() {
             const dt = clock.getDelta();
-            
-            processVRInputs();
-            updatePhysics(dt);
+            if (!isPlaying) {
+                renderer.render(scene, camera);
+                return;
+            }
 
-            // Kamera Takibi
-            const offset = new THREE.Vector3(0, 2, 5).applyEuler(drone.rotation);
-            camera.position.lerp(drone.position.clone().add(offset), 0.1);
+            let throttle = 0, yaw = 0, vertical = 0;
+
+            // VR INPUTS
+            const session = renderer.xr.getSession();
+            if (session) {
+                for (const source of session.inputSources) {
+                    if (!source.gamepad) continue;
+                    const a = source.gamepad.axes;
+                    const b = source.gamepad.buttons;
+                    if (source.handedness === 'right') {
+                        if (b[0].pressed || b[1].pressed) throttle = 1;
+                        if (b[4].pressed || b[5].pressed) vertical = -1;
+                    } else if (source.handedness === 'left') {
+                        if (b[4].pressed || b[5].pressed) vertical = 1;
+                        if (Math.abs(a[2]) > 0.1) yaw = -a[2];
+                    }
+                }
+            }
+
+            // PC INPUTS
+            if (keys['KeyW'] || keys['ArrowUp']) throttle = 1;
+            if (keys['KeyS'] || keys['ArrowDown']) vertical = -1;
+            if (keys['KeyA'] || keys['ArrowLeft']) yaw = 1;
+            if (keys['KeyD'] || keys['ArrowRight']) yaw = -1;
+            if (keys['Space'] || keys['KeyE']) vertical = 1;
+
+            // PHYSICS
+            if (throttle) {
+                const dir = new THREE.Vector3(0, 0, -1).applyEuler(drone.rotation);
+                velocity.add(dir.multiplyScalar(40 * dt));
+            }
+            rotationY += yaw * 2.5 * dt;
+            velocity.y += (vertical * 20 * dt) - (0.12 * dt);
+            velocity.multiplyScalar(0.97);
+
+            drone.rotation.y = rotationY;
+            drone.position.add(velocity.clone().multiplyScalar(dt));
+            if (drone.position.y < 0.5) { drone.position.y = 0.5; velocity.y = 0; }
+
+            // CAMERA FOLLOW (VR Optimized)
+            const camOffset = new THREE.Vector3(0, 2.5, 7).applyMatrix4(drone.matrixWorld);
+            camera.position.lerp(camOffset, 0.15);
             camera.lookAt(drone.position);
 
             renderer.render(scene, camera);
@@ -228,3 +196,5 @@
     </script>
 </body>
 </html>
+
+```
