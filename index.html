@@ -1,11 +1,10 @@
-```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>UFKA KANAT PRO V14 - TÜBİTAK 4006</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>UFKA KANAT PRO V13 - TEKNOFEST</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/VRButton.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/xr/XRControllerModelFactory.js"></script>
@@ -15,150 +14,151 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: radial-gradient(circle, #001a33 0%, #000 100%); z-index: 1000; color: #00FFCC;
-        }
-        .ui-box {
-            background: rgba(0, 20, 40, 0.9); padding: 30px; border: 2px solid #00FFCC;
-            border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(0,255,204,0.2);
-        }
-        input {
-            background: rgba(0,0,0,0.5); border: 1px solid #00FFCC; color: white;
-            padding: 10px; font-family: 'Orbitron'; margin: 20px 0; width: 250px; outline: none;
+            text-align: center;
         }
         .btn-start {
-            padding: 15px 40px; font-size: 18px; background: #FF6600; color: white;
-            border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
+            padding: 18px 45px; font-size: 22px; background: transparent; color: #00FFCC;
+            border: 2px solid #00FFCC; border-radius: 5px; cursor: pointer; font-weight: bold;
+            transition: 0.3s; box-shadow: 0 0 15px rgba(0,255,204,0.3);
         }
-        #hud {
-            position: fixed; top: 20px; left: 20px; color: #00FFCC; pointer-events: none;
-            display: none; font-size: 14px;
+        .btn-start:hover { background: #00FFCC; color: #000; box-shadow: 0 0 30px #00FFCC; }
+        
+        /* VR İçinde Görünecek HUD Tasarımı (Fallback için) */
+        #hud-container {
+            position: fixed; top: 20px; left: 20px; color: #00FFCC; z-index: 100;
+            pointer-events: none; display: none;
         }
-        .hud-val { color: #FF6600; font-weight: bold; }
-        #leaderboard {
-            margin-top: 20px; font-size: 12px; color: #aaa;
-        }
+        .hud-item { background: rgba(0,0,0,0.5); padding: 10px; margin-bottom: 5px; border-left: 3px solid #FF6600; }
     </style>
 </head>
 <body>
     <div id="overlay">
-        <div class="ui-box">
-            <h1 style="margin:0; letter-spacing:5px;">UFKA KANAT V14</h1>
-            <p style="font-size: 12px; color: #FF6600;">TÜBİTAK 4006 BİLİM FUARI ÖZEL SÜRÜM</p>
-            
-            <input type="text" id="pilotName" placeholder="PİLOT ADI GİRİNİZ..." maxlength="12">
-            <br>
-            <button class="btn-start" id="start-btn">SİSTEMLERİ BAŞLAT</button>
-
-            <div id="leaderboard">
-                <p>--- EN İYİ PİLOTLAR ---</p>
-                <div id="scoreList">Henüz kayıt yok.</div>
-            </div>
-        </div>
+        <h1 style="font-size: 3.5rem; letter-spacing: 10px; margin-bottom: 0;">UFKA KANAT</h1>
+        <p style="color: #FF6600; margin-bottom: 40px;">TEKNOFEST V13 | OTONOM VE MANUEL DRONE SİMÜLASYONU</p>
+        <button class="btn-start" id="start-trigger">SİSTEMLERİ BAŞLAT</button>
+        <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.7;">Quest 2 Kontrolcüleri otomatik olarak tanımlanır.</p>
     </div>
 
-    <div id="hud">
-        PİLOT: <span id="hud-name" class="hud-val">-</span><br>
-        SKOR: <span id="hud-score" class="hud-val">0</span><br>
-        BATARYA: <span id="hud-bat" class="hud-val">%100</span><br>
-        İRTİFA: <span id="hud-alt" class="hud-val">0</span>m
+    <div id="hud-container">
+        <div class="hud-item">HIZ: <span id="val-speed">0</span> m/s</div>
+        <div class="hud-item">İRTİFA: <span id="val-alt">0</span> m</div>
+        <div class="hud-item">BATARYA: %<span id="val-bat">100</span></div>
     </div>
 
     <script>
-        let scene, camera, renderer, drone, clock, ringGroup;
-        let isPlaying = false, pilotName = "Pilot";
-        let score = 0, battery = 100;
-        let velocity = new THREE.Vector3(), rotationY = 0;
+        // --- DEĞİŞKENLER ---
+        let scene, camera, renderer, drone, clock, particles;
         let inputState = { throttle: 0, yaw: 0, vertical: 0 };
-        
-        const leaderboard = JSON.parse(localStorage.getItem('droneScores') || '[]');
+        let stats = { speed: 0, alt: 0, battery: 100 };
+        let velocity = new THREE.Vector3();
+        let rotationY = 0;
+
+        const CONFIG = { acceleration: 50, rotSpeed: 3.0, drag: 0.97, gravity: 0.15 };
+
+        // --- BAŞLATICI ---
+        init();
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x00050a);
-            scene.fog = new THREE.Fog(0x00050a, 20, 1000);
+            scene.fog = new THREE.Fog(0x00050a, 50, 1500);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
+
+            // Standart VR Butonu
             document.body.appendChild(VRButton.createButton(renderer));
 
             clock = new THREE.Clock();
 
-            // Işıklandırma
-            scene.add(new THREE.AmbientLight(0x4040ff, 0.5));
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
+            // Aydınlatma
+            const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
+            scene.add(ambient);
+            const mainLight = new THREE.PointLight(0xffffff, 1.5);
+            mainLight.position.set(50, 100, 50);
+            scene.add(mainLight);
 
-            // Zemin ve Halkalar
-            createEnvironment();
+            createWorld();
             createDrone();
-            setupControllers();
-            updateLeaderboardDisplay();
+            setupXR();
 
-            document.getElementById('start-btn').onclick = startFlight;
+            document.getElementById('start-trigger').addEventListener('click', () => {
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('hud-container').style.display = 'block';
+            });
+
             renderer.setAnimationLoop(renderLoop);
         }
 
-        function createEnvironment() {
-            // Grid zemin
-            const grid = new THREE.GridHelper(1000, 50, 0x00ffcc, 0x002233);
+        function createWorld() {
+            // Teknofest Grid Zemini
+            const grid = new THREE.GridHelper(2000, 80, 0x00ffcc, 0x001122);
             scene.add(grid);
 
-            // Toplanacak Halkalar
-            ringGroup = new THREE.Group();
-            const ringGeo = new THREE.TorusGeometry(3, 0.2, 16, 32);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0xFF6600, emissive: 0xFF6600 });
-            
-            for(let i=0; i<15; i++) {
-                const ring = new THREE.Mesh(ringGeo, ringMat.clone());
-                ring.position.set(
-                    (Math.random()-0.5)*200,
-                    5 + Math.random()*20,
-                    (Math.random()-0.5)*200
-                );
-                ring.rotation.y = Math.random() * Math.PI;
-                ringGroup.add(ring);
+            // Uzay Tozu / Partiküller (Hız hissi için)
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = [];
+            for(let i=0; i<2000; i++) {
+                pPos.push((Math.random()-0.5)*1000, Math.random()*500, (Math.random()-0.5)*1000);
             }
-            scene.add(ringGroup);
+            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+            particles = new THREE.Points(pGeo, new THREE.PointsMaterial({color: 0x00ffcc, size: 0.5}));
+            scene.add(particles);
         }
 
         function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 1.5), new THREE.MeshStandardMaterial({color: 0x333333}));
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({color: 0x00FFCC}));
-            head.position.z = -0.8;
-            drone.add(body, head);
+            
+            // Gövde
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.2, 1.2),
+                new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8})
+            );
+            
+            // Kollar ve Işıklar
+            const armGeo = new THREE.BoxGeometry(1.5, 0.05, 0.05);
+            const arm1 = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({color: 0x222222}));
+            arm1.rotation.y = Math.PI / 4;
+            
+            const led = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8),
+                new THREE.MeshBasicMaterial({color: 0x00ff00})
+            );
+            led.position.set(0, 0, 0.6);
+            
+            drone.add(body, arm1, led);
             drone.position.y = 2;
             scene.add(drone);
         }
 
-        function setupControllers() {
+        function setupXR() {
             const factory = new THREE.XRControllerModelFactory();
+            
             for(let i=0; i<2; i++) {
-                const c = renderer.xr.getController(i);
-                scene.add(c);
-                const g = renderer.xr.getControllerGrip(i);
-                g.add(factory.createControllerModel(g));
-                scene.add(g);
+                const controller = renderer.xr.getController(i);
+                controller.addEventListener('connected', (e) => {
+                    console.log(`${e.data.handedness} bağlandı`);
+                });
+                scene.add(controller);
+
+                const grip = renderer.xr.getControllerGrip(i);
+                grip.add(factory.createControllerModel(grip));
+                scene.add(grip);
             }
         }
 
-        function startFlight() {
-            pilotName = document.getElementById('pilotName').value || "Bilinmiyor";
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            document.getElementById('hud-name').innerText = pilotName;
-            isPlaying = true;
-        }
-
-        function processInputs() {
+        function processVRInputs() {
             const session = renderer.xr.getSession();
             if (!session) return;
-            
-            inputState.throttle = 0; inputState.vertical = 0; inputState.yaw = 0;
+
+            inputState.throttle = 0;
+            inputState.vertical = 0;
+            inputState.yaw = 0;
 
             for (const source of session.inputSources) {
                 if (!source.gamepad) continue;
@@ -166,77 +166,65 @@
                 const a = source.gamepad.axes;
 
                 if (source.handedness === 'right') {
-                    if (b[0].pressed) inputState.throttle = 1; // Tetik: İleri
+                    if (b[0].pressed) inputState.throttle = 1; // Tetik: Gaz
                     if (b[5].pressed) inputState.vertical = -1; // B: Aşağı
-                } else {
+                } else if (source.handedness === 'left') {
                     if (b[4].pressed) inputState.vertical = 1; // A: Yukarı
                     if (Math.abs(a[2]) > 0.1) inputState.yaw = -a[2]; // Analog: Dönüş
                 }
             }
         }
 
+        function updatePhysics(dt) {
+            // Motor Gücü
+            if (inputState.throttle && stats.battery > 0) {
+                const dir = new THREE.Vector3(0, 0, -1).applyEuler(drone.rotation);
+                velocity.add(dir.multiplyScalar(CONFIG.acceleration * dt));
+                stats.battery -= 0.05; // Gaz verdikçe pil harca
+            }
+
+            // Yerçekimi ve İrtifa
+            velocity.y += (inputState.vertical * 25 * dt) - (CONFIG.gravity * dt);
+            
+            // Sürtünme
+            velocity.multiplyScalar(CONFIG.drag);
+
+            // Dönüş
+            rotationY += inputState.yaw * CONFIG.rotSpeed * dt;
+            drone.rotation.y = rotationY;
+
+            // Hareket Uygula
+            drone.position.add(velocity.clone().multiplyScalar(dt));
+
+            // Zemin Sınırı
+            if (drone.position.y < 0.1) {
+                drone.position.y = 0.1;
+                velocity.y = 0;
+            }
+
+            // İstatistikleri Güncelle
+            stats.speed = (velocity.length() * 3.6).toFixed(1);
+            stats.alt = drone.position.y.toFixed(1);
+            
+            // HUD Güncelle (Ekranda görünmesi için)
+            document.getElementById('val-speed').innerText = stats.speed;
+            document.getElementById('val-alt').innerText = stats.alt;
+            document.getElementById('val-bat').innerText = Math.max(0, Math.floor(stats.battery));
+        }
+
         function renderLoop() {
             const dt = clock.getDelta();
-            if (isPlaying) {
-                processInputs();
+            
+            processVRInputs();
+            updatePhysics(dt);
 
-                // Fizik ve Hareket
-                if (inputState.throttle && battery > 0) {
-                    const dir = new THREE.Vector3(0,0,-1).applyEuler(drone.rotation);
-                    velocity.add(dir.multiplyScalar(40 * dt));
-                    battery -= 2 * dt;
-                }
-                
-                velocity.y += (inputState.vertical * 20 * dt) - (0.1 * dt); // Yerçekimi
-                velocity.multiplyScalar(0.97); // Sürtünme
-                rotationY += inputState.yaw * 2.5 * dt;
-                
-                drone.rotation.y = rotationY;
-                drone.position.add(velocity.clone().multiplyScalar(dt));
-                if(drone.position.y < 0.1) { drone.position.y = 0.1; velocity.y = 0; }
+            // Kamera Takibi
+            const offset = new THREE.Vector3(0, 2, 5).applyEuler(drone.rotation);
+            camera.position.lerp(drone.position.clone().add(offset), 0.1);
+            camera.lookAt(drone.position);
 
-                // TAKİP KAMERASI (Kritik Düzeltme)
-                const camOffset = new THREE.Vector3(0, 2, 5).applyMatrix4(drone.matrixWorld);
-                camera.position.lerp(camOffset, 0.1);
-                camera.lookAt(drone.position);
-
-                // Çarpışma Kontrolü (Halkalar)
-                ringGroup.children.forEach(ring => {
-                    if(drone.position.distanceTo(ring.position) < 4) {
-                        ring.position.set((Math.random()-0.5)*200, 5 + Math.random()*20, (Math.random()-0.5)*200);
-                        score += 100;
-                        battery = Math.min(100, battery + 15); // Enerji tazele
-                    }
-                });
-
-                // HUD Güncelle
-                document.getElementById('hud-score').innerText = score;
-                document.getElementById('hud-bat').innerText = `%${Math.floor(battery)}`;
-                document.getElementById('hud-alt').innerText = Math.floor(drone.position.y);
-
-                if(battery <= 0) gameOver();
-            }
             renderer.render(scene, camera);
         }
-
-        function gameOver() {
-            isPlaying = false;
-            leaderboard.push({ name: pilotName, score: score });
-            leaderboard.sort((a,b) => b.score - a.score);
-            localStorage.setItem('droneScores', JSON.stringify(leaderboard.slice(0,5)));
-            
-            alert(`BATARYA BİTTİ!\nSkorun: ${score}\nYeni uçuş için sayfayı yenileyin.`);
-            location.reload();
-        }
-
-        function updateLeaderboardDisplay() {
-            const html = leaderboard.slice(0,5).map((s, i) => `<div>${i+1}. ${s.name}: ${s.score}</div>`).join('');
-            document.getElementById('scoreList').innerHTML = html || "Henüz kayıt yok.";
-        }
-
-        init();
     </script>
 </body>
 </html>
-
-```
