@@ -61,13 +61,13 @@
 
     <div id="menu" class="overlay" onclick="handleGlobalClick(event)">
         <div class="tag">TEVFİK İLERİ AİHL</div>
-        <div class="game-title">UFKA KANAT PRO</div>
+        <div class="game-title">UFKA KANAT</div>
         <div id="hs-display">REKOR: 0</div>
         <div class="credits">AHMET SAİD ADALAR | ÖMER PİLE | KEREM KARACA</div>
         <div class="ctrl-box">
             <strong>BİLGİSAYAR:</strong> W/S/A/D ve Boşluk<br>
-            <strong>VR KONTROL:</strong> Sol Joystick (Yön), Sağ Joystick (Hız)<br>
-            <strong>BUTONLAR:</strong> A/X (Yüksel), B/Y (Menü/Mağaza)
+            <strong>VR:</strong> Sol/Sağ Joystick ve Tetikler<br>
+            <strong>BUTONLAR:</strong> A/X (Yüksel), B/Y (Çıkış)
         </div>
         <div class="vr-btn-hint">BAŞLATMAK İÇİN DOKUNUN</div>
     </div>
@@ -81,15 +81,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        /**
-         * VRButton Fallback & Controller Handler
-         */
         const VRButtonManual = {
             createButton: function(renderer) {
                 const btn = document.createElement('button');
                 btn.id = "vr-control-button";
                 btn.textContent = 'VR DESTEĞİ KONTROL EDİLİYOR...';
-                
                 if ('xr' in navigator) {
                     navigator.xr.isSessionSupported('immersive-vr').then(supported => {
                         if (supported) {
@@ -98,7 +94,7 @@
                             btn.onclick = (e) => {
                                 e.stopPropagation();
                                 navigator.xr.requestSession('immersive-vr', { 
-                                    optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] 
+                                    optionalFeatures: ['local-floor', 'bounded-floor'] 
                                 }).then(session => {
                                     renderer.xr.setSession(session);
                                     startGame(); 
@@ -118,18 +114,16 @@
         let scene, camera, renderer, clock, drone, props = [];
         let isPlaying = false, gameStarted = false;
         let points = 0, battery = 100, highScore = 0;
-        let pos = new THREE.Vector3(0, 15, 0), vel = new THREE.Vector3(0, 0, 0), hpr = new THREE.Euler(0,0,0);
+        let pos = new THREE.Vector3(0, 50, 0), vel = new THREE.Vector3(0, 0, 0), hpr = new THREE.Euler(0,0,0);
         const keys = {}, rings = [];
-        
-        // VR Gamepad Verileri
         const vrInput = { thrust: 0, turn: 0, forward: 0, upward: 0 };
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x7ECAFF);
-            scene.fog = new THREE.FogExp2(0xAADDBB, 0.00007);
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.00015);
 
-            camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.5, 300000);
+            camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 50000);
             
             const canvas = document.getElementById('c');
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -139,15 +133,15 @@
 
             clock = new THREE.Clock();
 
-            scene.add(new THREE.AmbientLight(0xFFFFFF, 0.6));
-            const sun = new THREE.DirectionalLight(0xFFFFFF, 1.0);
+            scene.add(new THREE.AmbientLight(0xFFFFFF, 0.7));
+            const sun = new THREE.DirectionalLight(0xFFFFFF, 1.2);
             sun.position.set(500, 1000, 500);
             scene.add(sun);
 
             document.body.appendChild(VRButtonManual.createButton(renderer));
 
             createEnvironment();
-            createDrone();
+            createDetailedDrone();
             
             highScore = parseInt(localStorage.getItem('ufka_kanat_v5_pro_hs')) || 0;
             document.getElementById('hs-display').innerText = `REKOR: ${highScore}`;
@@ -160,39 +154,151 @@
             gameStarted = true;
         }
 
-        function createEnvironment() {
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(150000, 150000),
-                new THREE.MeshLambertMaterial({ color: 0x1E6525 })
-            );
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
+        function getTerrainHeight(x, z) {
+            let height = 0;
+            let absX = Math.abs(x);
+            if (absX < 600) {
+                height = Math.sin(x * 0.01) * 5 + Math.cos(z * 0.01) * 5;
+            } else {
+                let mountainSlope = (absX - 600) * 0.5;
+                height = Math.pow(mountainSlope, 1.2);
+                height += Math.sin(x * 0.005) * 100 + Math.cos(z * 0.005) * 120;
+            }
+            return height;
+        }
 
-            const rGeo = new THREE.TorusGeometry(12, 0.7, 16, 64);
-            const rMatBlue = new THREE.MeshLambertMaterial({ color: 0x0088FF, emissive: 0x0088FF, emissiveIntensity: 0.8 });
+        function createEnvironment() {
+            const worldSize = 20000;
+            const segments = 128;
+            const terrainGeo = new THREE.PlaneGeometry(worldSize, worldSize, segments, segments);
+            terrainGeo.rotateX(-Math.PI / 2);
+
+            const posAttr = terrainGeo.attributes.position;
+            const colors = [];
+            const color = new THREE.Color();
+
+            for (let i = 0; i < posAttr.count; i++) {
+                let x = posAttr.getX(i);
+                let z = posAttr.getZ(i);
+                let h = getTerrainHeight(x, z);
+                posAttr.setY(i, h);
+
+                if (h > 600) color.setHex(0xEEEEEE);
+                else if (h > 200) color.setHex(0x666666);
+                else color.setHex(0x348C31);
+                colors.push(color.r, color.g, color.b);
+            }
             
-            for(let i=0; i<200; i++) {
-                const ring = new THREE.Mesh(rGeo, rMatBlue);
-                ring.position.set((Math.random()-0.5)*2000, 30 + Math.random()*150, 600 + i*400);
+            terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            terrainGeo.computeVertexNormals();
+            const terrainMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+            const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+            scene.add(terrain);
+
+            const treeCount = 3000;
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 8, 6);
+            const leavesGeo = new THREE.ConeGeometry(4, 15, 6);
+            const trunkMat = new THREE.MeshLambertMaterial({color: 0x4d2d1e});
+            const leavesMat = new THREE.MeshLambertMaterial({color: 0x1a4a1a});
+
+            for (let i = 0; i < treeCount; i++) {
+                let tx = (Math.random() - 0.5) * 15000;
+                let tz = (Math.random() - 0.5) * 15000;
+                if (Math.abs(tx) > 80) {
+                    let th = getTerrainHeight(tx, tz);
+                    const tree = new THREE.Group();
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                    leaves.position.y = 8;
+                    tree.add(trunk); tree.add(leaves);
+                    tree.position.set(tx, th + 4, tz);
+                    tree.scale.setScalar(0.5 + Math.random() * 1.5);
+                    scene.add(tree);
+                }
+            }
+
+            const rGeo = new THREE.TorusGeometry(15, 1.5, 12, 48);
+            const rMat = new THREE.MeshLambertMaterial({ color: 0x00FF88, emissive: 0x00FF88, emissiveIntensity: 1 });
+            for(let i=0; i<150; i++) {
+                const ring = new THREE.Mesh(rGeo, rMat);
+                ring.position.set((Math.random()-0.5)*300, 60 + Math.random()*150, 500 + i*450);
                 scene.add(ring);
                 rings.push(ring);
             }
         }
 
-        function createDrone() {
+        function createDetailedDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 3), new THREE.MeshLambertMaterial({color: 0x222222}));
+
+            // 1. Ana Gövde (Karbon Fiber Görünümlü)
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 3.5), bodyMat);
             drone.add(body);
 
-            const propGeo = new THREE.BoxGeometry(2.5, 0.05, 0.2);
-            const propMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.4});
-            
-            [[1.3, 0.4, 1.3], [-1.3, 0.4, 1.3], [1.3, 0.4, -1.3], [-1.3, 0.4, -1.3]].forEach(p => {
+            // Üst Panel
+            const topPanel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.2, 2.5), new THREE.MeshLambertMaterial({color: 0x333333}));
+            topPanel.position.y = 0.5;
+            drone.add(topPanel);
+
+            // 2. Kollar (X şeklinde)
+            const armGeo = new THREE.BoxGeometry(0.3, 0.2, 5);
+            const arm1 = new THREE.Mesh(armGeo, bodyMat);
+            arm1.rotation.y = Math.PI / 4;
+            drone.add(arm1);
+            const arm2 = new THREE.Mesh(armGeo, bodyMat);
+            arm2.rotation.y = -Math.PI / 4;
+            drone.add(arm2);
+
+            // 3. Motorlar ve Pervaneler
+            const motorGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 8);
+            const motorMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            const propGeo = new THREE.BoxGeometry(3.5, 0.05, 0.3);
+            const propMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+
+            const propPos = [
+                [1.7, 0.4, 1.7], [-1.7, 0.4, 1.7],
+                [1.7, 0.4, -1.7], [-1.7, 0.4, -1.7]
+            ];
+
+            propPos.forEach(p => {
+                const motor = new THREE.Mesh(motorGeo, motorMat);
+                motor.position.set(p[0], p[1] - 0.2, p[2]);
+                drone.add(motor);
+
                 const pr = new THREE.Mesh(propGeo, propMat);
                 pr.position.set(p[0], p[1], p[2]);
                 drone.add(pr);
                 props.push(pr);
             });
+
+            // 4. Kamera (Ön)
+            const camGroup = new THREE.Group();
+            const lens = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshPhongMaterial({color: 0x111111, shininess: 100}));
+            const lensOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 16), bodyMat);
+            lensOuter.rotation.x = Math.PI / 2;
+            camGroup.add(lensOuter);
+            camGroup.add(lens);
+            camGroup.position.set(0, -0.2, 1.8);
+            drone.add(camGroup);
+
+            // 5. İniş Takımları (Skid)
+            const skidGeo = new THREE.BoxGeometry(0.15, 1.2, 3);
+            const skid1 = new THREE.Mesh(skidGeo, bodyMat);
+            skid1.position.set(0.8, -0.8, 0);
+            drone.add(skid1);
+            const skid2 = new THREE.Mesh(skidGeo, bodyMat);
+            skid2.position.set(-0.8, -0.8, 0);
+            drone.add(skid2);
+
+            // 6. Navigasyon Işıkları (Emissive)
+            const lightGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const redLight = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({color: 0xff0000}));
+            redLight.position.set(-1.7, 0.2, -1.7);
+            drone.add(redLight);
+
+            const greenLight = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({color: 0x00ff00}));
+            greenLight.position.set(1.7, 0.2, -1.7);
+            drone.add(greenLight);
 
             scene.add(drone);
             drone.visible = false;
@@ -201,30 +307,20 @@
         function updateVRInput() {
             const session = renderer.xr.getSession();
             if (!session) return;
-
             vrInput.thrust = 0; vrInput.turn = 0; vrInput.forward = 0; vrInput.upward = 0;
-
             for (const source of session.inputSources) {
                 if (source.gamepad) {
-                    const axes = source.gamepad.axes; // [x-axis, y-axis]
-                    const buttons = source.gamepad.buttons; // [trigger, grip, joystick-click, A, B, X, Y...]
-
-                    // Sol Kontrolcü (Hareket ve Dönüş)
+                    const axes = source.gamepad.axes;
+                    const buttons = source.gamepad.buttons;
                     if (source.handedness === 'left') {
-                        vrInput.turn = -axes[0]; // Joystick X
-                        vrInput.forward = -axes[1]; // Joystick Y
-                        // X veya Y Butonları (Oculus/Meta: X=4, Y=5)
-                        if (buttons[4] && buttons[4].pressed) vrInput.upward = 1;
-                        if (buttons[5] && buttons[5].pressed) console.log("Y Butonuna Basıldı - Mağaza");
-                    }
-                    // Sağ Kontrolcü (Yükseklik ve Hız)
-                    if (source.handedness === 'right') {
-                        // A veya B Butonları (Oculus/Meta: A=4, B=5)
+                        vrInput.turn = -axes[0];
+                        vrInput.forward = -axes[1];
                         if (buttons[4] && buttons[4].pressed) vrInput.upward = 1; 
-                        if (buttons[5] && buttons[5].pressed) gameOver(); // B Butonu çıkış gibi
-                        
-                        // Tetik (Trigger) ile gaz verme
-                        if (buttons[0].pressed) vrInput.forward = 1;
+                    }
+                    if (source.handedness === 'right') {
+                        if (buttons[4] && buttons[4].pressed) vrInput.upward = 1; 
+                        if (buttons[0].pressed) vrInput.forward = 1; 
+                        if (buttons[5] && buttons[5].pressed) gameOver(); 
                     }
                 }
             }
@@ -234,55 +330,56 @@
             if(!gameStarted || isPlaying) return;
             isPlaying = true;
             points = 0; battery = 100;
-            pos.set(0, 15, 0); vel.set(0, 0, 0); hpr.set(0, 0, 0);
-            
+            pos.set(0, 80, 0); vel.set(0, 0, 0); hpr.set(0, 0, 0);
             document.getElementById('menu').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('menu').style.display = 'none';
                 document.getElementById('hud').style.display = 'flex';
             }, 500);
-
             drone.visible = true;
-            showNotif("SİSTEMLER AKTİF");
+            showNotif("SİSTEMLER ÇEVRİMİÇİ");
         }
 
         function handleGlobalClick() { if(!isPlaying) startGame(); }
 
         function animate() {
             const dt = Math.min(clock.getDelta(), 0.1);
-            
             if (isPlaying) {
                 updateVRInput();
-
                 let accel = new THREE.Vector3(0, -9.81, 0);
                 
-                // Klavye ve VR Input Birleştirme
                 let moveForward = (keys['w'] ? 1 : 0) + (vrInput.forward > 0.1 ? vrInput.forward : 0);
                 let moveBackward = (keys['s'] ? 1 : 0);
                 let turnSpeed = (keys['a'] ? 3.5 : 0) - (keys['d'] ? 3.5 : 0) + (vrInput.turn * 4);
-                let lift = (keys[' '] ? 50 : 0) + (vrInput.upward * 60);
+                let lift = (keys[' '] ? 60 : 0) + (vrInput.upward * 70);
 
-                if (moveForward) { let m = new THREE.Vector3(0, 0, 95 * moveForward); m.applyEuler(hpr); accel.add(m); }
-                if (moveBackward) { let m = new THREE.Vector3(0, 0, -60); m.applyEuler(hpr); accel.add(m); }
+                if (moveForward) { 
+                    let m = new THREE.Vector3(0, 0, 150 * moveForward); 
+                    m.applyEuler(hpr); accel.add(m); 
+                }
+                if (moveBackward) { 
+                    let m = new THREE.Vector3(0, 0, -100); 
+                    m.applyEuler(hpr); accel.add(m); 
+                }
                 
                 hpr.y += turnSpeed * dt;
                 accel.y += lift;
 
-                // Fizik Hesaplama
-                vel.add(accel.sub(vel.clone().multiplyScalar(1.6)).multiplyScalar(dt));
+                vel.add(accel.sub(vel.clone().multiplyScalar(1.5)).multiplyScalar(dt));
                 pos.add(vel.clone().multiplyScalar(dt));
 
                 drone.position.copy(pos);
                 drone.rotation.copy(hpr);
-                props.forEach((p, i) => p.rotation.y += (i % 2 === 0 ? 1 : -1));
+                // Pervane dönüş animasyonu
+                props.forEach((p, i) => p.rotation.y += (i % 2 === 0 ? 1.8 : -1.8));
 
-                battery -= dt * 1.5;
+                battery -= dt * 1.6;
                 document.getElementById('skor-t').innerText = `PUAN: ${points}`;
                 document.getElementById('bat-t').innerText = `BATARYA: %${Math.max(0, Math.floor(battery))}`;
                 document.getElementById('alt-t').innerText = `İRTİFA: ${Math.floor(pos.y)}m`;
 
                 rings.forEach(r => {
-                    if(r.visible && pos.distanceTo(r.position) < 18) {
+                    if(r.visible && pos.distanceTo(r.position) < 28) {
                         r.visible = false;
                         points += 1000;
                         battery = Math.min(100, battery + 20);
@@ -290,19 +387,20 @@
                     }
                 });
 
-                // Kamera Takibi (VR dışındayken)
                 if(!renderer.xr.isPresenting) {
-                    let camOff = new THREE.Vector3(0, 15, -40);
+                    let camOff = new THREE.Vector3(0, 14, -40);
                     camOff.applyEuler(hpr);
                     camera.position.lerp(pos.clone().add(camOff), 0.1);
                     camera.lookAt(pos);
                 }
 
-                if(pos.y < 0.5 || battery <= 0) gameOver();
+                let groundAtPos = getTerrainHeight(pos.x, pos.z);
+                if(pos.y < groundAtPos + 1.2 || battery <= 0) gameOver();
+
             } else {
-                const t = Date.now() * 0.0004;
-                camera.position.set(Math.cos(t)*500, 250, Math.sin(t)*500);
-                camera.lookAt(0,0,0);
+                const t = Date.now() * 0.0003;
+                camera.position.set(Math.cos(t)*800, 400, Math.sin(t)*800);
+                camera.lookAt(0, 50, 0);
             }
             renderer.render(scene, camera);
         }
@@ -319,6 +417,7 @@
             document.getElementById('menu').style.opacity = '1';
             document.getElementById('hud').style.display = 'none';
             rings.forEach(r => r.visible = true);
+            showNotif("SİNYAL KAYBI");
         }
 
         function showNotif(m) {
