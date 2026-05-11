@@ -55,6 +55,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/vr/VRButton.js"></script>
 
     <script>
         'use strict';
@@ -67,26 +68,21 @@
         const keys = {}, rings = [];
 
         function init() {
-            // SAHNE
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x7ECAFF);
             scene.fog = new THREE.FogExp2(0xAADDBB, 0.00007);
 
-            // KAMERA
             camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.5, 300000);
             camera.position.set(0, 200, 400);
-            camera.lookAt(0, 0, 0);
 
-            // RENDERER
             const canvas = document.getElementById('c');
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.xr.enabled = true; // VR Desteği açık
+            renderer.xr.enabled = true;
 
             clock = new THREE.Clock();
 
-            // IŞIK
             scene.add(new THREE.AmbientLight(0xFFFFFF, 0.6));
             const sun = new THREE.DirectionalLight(0xFFFFFF, 1.0);
             sun.position.set(500, 1000, 500);
@@ -101,10 +97,8 @@
             window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             
-            // Siyah ekranı önleyen en önemli kısım: Loop'un hemen başlaması
             renderer.setAnimationLoop(animate);
             gameStarted = true;
-            console.log("Sistem hazır.");
         }
 
         function createEnvironment() {
@@ -128,7 +122,6 @@
             station.add(stationRadar);
             scene.add(station);
 
-            // Ağaçlar ve Halkalar (Aynı mantık)
             for(let i=0; i<400; i++) {
                 const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 18, 1.5), new THREE.MeshLambertMaterial({color: 0x4B2C20}));
                 trunk.position.set((Math.random()-0.5)*8000, 9, Math.random()*20000 + 300);
@@ -145,8 +138,39 @@
 
         function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 2), new THREE.MeshLambertMaterial({color: 0x1A1A1A}));
+            
+            // Gelişmiş Gövde
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.5), new THREE.MeshLambertMaterial({color: 0x222222}));
             drone.add(body);
+
+            // Kollar ve Pervaneler
+            const armGeo = new THREE.BoxGeometry(0.2, 0.2, 2.8);
+            const armMat = new THREE.MeshLambertMaterial({color: 0x333333});
+            const propGeo = new THREE.BoxGeometry(2.2, 0.05, 0.2);
+            const propMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.6});
+
+            const armPos = [
+                {x: 1, z: 1, rot: Math.PI/4}, {x: -1, z: 1, rot: -Math.PI/4},
+                {x: 1, z: -1, rot: -Math.PI/4}, {x: -1, z: -1, rot: Math.PI/4}
+            ];
+
+            armPos.forEach(p => {
+                const arm = new THREE.Mesh(armGeo, armMat);
+                arm.position.set(p.x * 0.8, 0.2, p.z * 0.8);
+                arm.rotation.y = p.rot;
+                drone.add(arm);
+
+                const prop = new THREE.Mesh(propGeo, propMat);
+                prop.position.set(p.x * 1.6, 0.5, p.z * 1.6);
+                drone.add(prop);
+                props.push(prop);
+            });
+
+            // Kamera/Göz
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshBasicMaterial({color: 0x00ff88}));
+            eye.position.set(0, 0, 1.2);
+            drone.add(eye);
+
             scene.add(drone);
             drone.visible = false;
         }
@@ -169,8 +193,6 @@
             const dt = Math.min(clock.getDelta(), 0.1);
             if (isPlaying) {
                 let accel = new THREE.Vector3(0, -9.81, 0);
-                
-                // Klavye Kontrol
                 if (keys['w']) { let m = new THREE.Vector3(0, 0, 80); m.applyEuler(hpr); accel.add(m); }
                 if (keys['s']) { let m = new THREE.Vector3(0, 0, -50); m.applyEuler(hpr); accel.add(m); }
                 if (keys['a']) hpr.y += 3.5 * dt;
@@ -182,13 +204,13 @@
 
                 drone.position.copy(pos);
                 drone.rotation.copy(hpr);
+                props.forEach((p, i) => p.rotation.y += (i % 2 === 0 ? 30 : -30));
 
                 battery -= dt * 0.7;
                 document.getElementById('skor-t').innerText = `PUAN: ${points}`;
                 document.getElementById('bat-t').innerText = `BATARYA: %${Math.max(0, Math.floor(battery))}`;
                 document.getElementById('alt-t').innerText = `İRTİFA: ${Math.floor(pos.y)}m`;
 
-                // Kamera Takip
                 let camOff = new THREE.Vector3(0, 15, -30);
                 camOff.applyEuler(hpr);
                 camera.position.lerp(pos.clone().add(camOff), 0.1);
@@ -196,7 +218,6 @@
 
                 if(pos.y < 0.5 || battery <= 0) gameOver();
             } else {
-                // Menüde dönen kamera
                 const t = Date.now() * 0.0005;
                 camera.position.set(Math.cos(t)*400, 200, Math.sin(t)*400);
                 camera.lookAt(0,0,0);
@@ -212,8 +233,6 @@
         }
 
         function randomRange(min, max) { return Math.random() * (max - min) + min; }
-
-        // Sayfa yüklendiğinde başlat
         window.onload = init;
     </script>
 </body>
