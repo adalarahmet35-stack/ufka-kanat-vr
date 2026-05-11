@@ -68,7 +68,6 @@
             opacity:0; transition:0.3s; z-index:200; text-align: center; width: 100%; text-shadow: 0 0 20px #00FF88;
         }
 
-        /* Gemini AI UI Elements */
         .ai-section {
             display: flex;
             flex-direction: column;
@@ -128,6 +127,13 @@
             font-size: 10px;
             margin-bottom: 5px;
             display: inline-block;
+        }
+
+        #vr-btn {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 15px 30px; background: #FF6600; color: white; border: none;
+            font-family: 'Orbitron'; font-weight: bold; border-radius: 50px;
+            cursor: pointer; display: none; z-index: 1000; box-shadow: 0 0 20px #FF6600;
         }
     </style>
 </head>
@@ -191,7 +197,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        const apiKey = ""; // Çevresel anahtar otomatik olarak sağlanır
+        const apiKey = ""; 
         let scene, camera, renderer, clock, drone, droneModel, props = [], trees = [];
         let isPlaying = false;
         let points = 0, battery = 100, highScore = 0;
@@ -224,7 +230,7 @@
                     retries--;
                     if (retries === 0) {
                         document.getElementById('loading-ai').style.display = 'none';
-                        return "AI Bağlantı Sorunu. Lütfen tekrar deneyin.";
+                        return "AI Bağlantı Sorunu.";
                     }
                     await new Promise(r => setTimeout(r, delay));
                     delay *= 2;
@@ -276,31 +282,23 @@
             return new Blob([view], { type: 'audio/wav' });
         }
 
-        // --- GEMINI FEATURES ---
-
         async function generateMission() {
             const aiPanel = document.getElementById('ai-response');
             aiPanel.style.display = 'block';
             aiPanel.innerText = "Görev emri oluşturuluyor...";
-            
-            const prompt = "Bir FPV drone pilotu için kısa, heyecan verici bir görev senaryosu yaz. Görev ormanlık bir alanda geçsin. 1 cümlelik görev ismi ve 1 cümlelik detay ver.";
-            const system = "Sen bir askeri drone harekat merkezisin. Ciddi ve otoriter bir ton kullan.";
-            
-            const res = await callGemini(prompt, system);
+            const res = await callGemini("Bir FPV drone pilotu için kısa görev senaryosu yaz.", "Askeri drone merkezi tonu.");
             currentMission = res;
             aiPanel.innerText = res;
-            
             document.getElementById('mission-status').style.display = 'block';
             document.getElementById('mission-text').innerText = res.split('.')[0];
-            
-            playTTS("Yeni görev tanımlandı: " + res);
+            playTTS("Yeni görev tanımlandı.");
         }
 
         async function getWeatherSim() {
             const aiPanel = document.getElementById('ai-response');
             aiPanel.style.display = 'block';
             aiPanel.innerText = "Meteorolojik veriler analiz ediliyor...";
-            const res = await callGemini("Şu anki uçuş alanı için rüzgar, nem ve türbülans içeren teknik bir hava raporu hazırla. 2 cümle olsun.", "Sen kıdemli bir meteoroloji subayısın.");
+            const res = await callGemini("Uçuş alanı hava raporu hazırla.", "Meteoroloji subayı.");
             aiPanel.innerText = res;
             playTTS(res);
         }
@@ -308,18 +306,14 @@
         async function getPostFlightAnalysis(score, finalAlt, bat) {
             const aiPanel = document.getElementById('ai-response');
             aiPanel.style.display = 'block';
-            aiPanel.innerText = "Uçuş verileri işleniyor...";
-            
-            const prompt = `Uçuş Özeti: Puan: ${score}, Son İrtifa: ${finalAlt}m, Kalan Batarya: %${bat}. Bu verileri analiz et ve pilotun performansını değerlendir. Bir sonraki uçuş için spesifik bir teknik tavsiye ver.`;
-            const system = "Sen profesyonel bir drone yarış antrenörüsün. Teknik terimler kullanarak (pitch, roll, throttle vb.) analiz yap.";
-            
+            const prompt = `Puan: ${score}, İrtifa: ${finalAlt}m, Batarya: %${bat}. Analiz et.`;
+            const system = "Drone yarış antrenörü tonu.";
             const res = await callGemini(prompt, system);
             aiPanel.innerHTML = "<strong>✨ UÇUŞ ANALİZİ:</strong><br>" + res;
-            playTTS("Uçuş analizi hazır. " + res);
+            playTTS("Uçuş analizi hazır.");
         }
 
         // --- THREE.JS ENGINE ---
-
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x1a2a3a); 
@@ -332,9 +326,7 @@
             renderer.xr.enabled = true;
 
             clock = new THREE.Clock();
-
-            const amb = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(amb);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(500, 1000, 500);
             scene.add(sun);
@@ -361,7 +353,6 @@
             const posAttr = geo.attributes.position;
             const colors = [];
             const color = new THREE.Color();
-
             for(let i=0; i<posAttr.count; i++) {
                 let x = posAttr.getX(i), z = posAttr.getZ(i);
                 let h = Math.sin(x*0.005)*40 + Math.cos(z*0.005)*40;
@@ -378,12 +369,7 @@
 
             const ringGeo = new THREE.TorusGeometry(20, 2, 16, 40);
             for(let i=0; i<100; i++) {
-                const rMat = new THREE.MeshStandardMaterial({ 
-                    color: i%2?0xFF6600:0x00FFDD, 
-                    emissive: i%2?0xFF6600:0x00FFDD,
-                    emissiveIntensity: 3
-                });
-                const r = new THREE.Mesh(ringGeo, rMat);
+                const r = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: i%2?0xFF6600:0x00FFDD, emissive: i%2?0xFF6600:0x00FFDD, emissiveIntensity: 3 }));
                 r.position.set((Math.random()-0.5)*3000, 100 + Math.random()*300, 800 + i*900);
                 scene.add(r); rings.push(r);
             }
@@ -394,7 +380,6 @@
             const trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
             const leavesGeo = new THREE.ConeGeometry(8, 16, 8);
             const leavesMat = new THREE.MeshLambertMaterial({ color: 0x1a4a2a });
-
             for (let i = 0; i < 500; i++) {
                 const tree = new THREE.Group();
                 const trunk = new THREE.Mesh(trunkGeo, trunkMat); trunk.position.y = 4; tree.add(trunk);
@@ -408,7 +393,6 @@
                 let tz = (Math.random() - 0.5) * 12000 + 4000;
                 if(Math.abs(tx) < 100) tx += 200 * Math.sign(tx || 1);
                 tree.position.set(tx, 0, tz);
-                tree.rotation.y = Math.random() * Math.PI;
                 scene.add(tree); trees.push(tree);
             }
         }
@@ -419,15 +403,6 @@
             const carbonMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
             const body = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 5), carbonMat);
             droneModel.add(body);
-            const cam = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1.2), carbonMat);
-            cam.position.z = 2.5;
-            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({color: 0x00FFDD}));
-            lens.position.set(0, 0, 0.61); cam.add(lens);
-            droneModel.add(cam);
-            const armG = new THREE.BoxGeometry(0.5, 0.4, 8);
-            const a1 = new THREE.Mesh(armG, carbonMat); a1.rotation.y = Math.PI/4;
-            const a2 = new THREE.Mesh(armG, carbonMat); a2.rotation.y = -Math.PI/4;
-            droneModel.add(a1, a2);
             const pHubG = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 16);
             const pBladeG = new THREE.BoxGeometry(4.5, 0.05, 0.4);
             const pMat = new THREE.MeshBasicMaterial({ color: 0x00FF88, transparent: true, opacity: 0.6 });
@@ -441,26 +416,43 @@
         }
 
         function updateInputs() {
+            // Klavye sıfırlama (Her karede)
             inputState.forward = keys['KeyW'] ? 1 : 0;
             inputState.backward = keys['KeyS'] ? 1 : 0;
             inputState.turn = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
             inputState.up = keys['Space'] ? 1 : 0;
-            // Shift tuşu için kontrol (Sol veya Sağ Shift)
             inputState.down = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1 : 0;
             
+            // VR Kontrolcü Okuma
             const session = renderer.xr.getSession();
             if (session) {
-                for (const source of session.inputSources) {
+                const inputSources = session.inputSources;
+                for (let i = 0; i < inputSources.length; i++) {
+                    const source = inputSources[i];
                     if (!source.gamepad) continue;
+                    
                     const gp = source.gamepad;
+                    // Sağ Kontrolcü: Gaz (Trigger) ve Yükselme (A butonu)
                     if (source.handedness === 'right') {
-                        if (gp.buttons[1]?.value > 0.1) inputState.forward = gp.buttons[1].value;
-                        if (gp.buttons[0]?.pressed || gp.buttons[4]?.pressed) inputState.up = 1;
+                        // Standard mapping: Trigger genellikle button[0] veya [1]
+                        const trigger = gp.buttons[1] || gp.buttons[0];
+                        if (trigger.value > 0.1) inputState.forward = trigger.value;
+                        
+                        // A Butonu (index 4 veya 0 olabilir cihaz tipine göre)
+                        if (gp.buttons[4]?.pressed || gp.buttons[0]?.pressed) inputState.up = 1;
                     }
+                    
+                    // Sol Kontrolcü: Fren (Trigger), Dönüş (Joystick) ve Alçalma (X/Y butonu)
                     if (source.handedness === 'left') {
-                        if (gp.buttons[1]?.value > 0.1) inputState.backward = gp.buttons[1].value;
-                        if (Math.abs(gp.axes[2]) > 0.1) inputState.turn = -gp.axes[2];
-                        if (gp.buttons[0]?.pressed) inputState.down = 1;
+                        const trigger = gp.buttons[1] || gp.buttons[0];
+                        if (trigger.value > 0.1) inputState.backward = trigger.value;
+                        
+                        // Joystick ekseni (genellikle axes[2] veya [0] x eksenidir)
+                        const joyX = gp.axes[2] || gp.axes[0];
+                        if (Math.abs(joyX) > 0.1) inputState.turn = -joyX;
+
+                        // X Butonu
+                        if (gp.buttons[4]?.pressed || gp.buttons[0]?.pressed) inputState.down = 1;
                     }
                 }
             }
@@ -468,17 +460,14 @@
 
         function animate() {
             const dt = Math.min(clock.getDelta(), 0.05);
-            const time = clock.getElapsedTime();
             if (isPlaying) {
                 updateInputs();
                 let force = new THREE.Vector3(0, -9.8, 0); 
                 let thrust = (inputState.forward - inputState.backward * 0.7) * 250;
                 let tVec = new THREE.Vector3(0, 0, thrust); tVec.applyEuler(hpr);
                 force.add(tVec);
-                
-                // İrtifa kontrolleri
                 force.y += (inputState.up * 105);
-                if (inputState.down) force.y -= 105; // Shift ile alçalma hızı Space ile aynı seviyeye çekildi
+                if (inputState.down) force.y -= 105;
                 
                 hpr.y += inputState.turn * 3.8 * dt;
                 droneModel.rotation.x = THREE.MathUtils.lerp(droneModel.rotation.x, (inputState.forward - inputState.backward) * 0.6, 0.1);
@@ -489,16 +478,20 @@
                 drone.rotation.y = hpr.y;
                 props.forEach((p, i) => p.rotation.y += (i%2?20:-20));
                 battery -= dt * 0.5;
+                
                 document.getElementById('bat-t').innerText = `%${Math.max(0, Math.floor(battery))}`;
                 document.getElementById('skor-t').innerText = points;
                 document.getElementById('alt-t').innerText = `${Math.floor(pos.y)}m`;
+                
                 if (pos.y < 4 || battery <= 0) finalizeGame();
+                
                 rings.forEach(r => {
                     if (r.visible && pos.distanceTo(r.position) < 35) {
                         r.visible = false; points += 1200; battery = Math.min(100, battery + 20);
                         showNotif("+1200 PUAN");
                     }
                 });
+
                 const camOffset = new THREE.Vector3(0, 8, -25).applyEuler(hpr);
                 camera.position.lerp(pos.clone().add(camOffset), 0.15);
                 camera.lookAt(pos.x, pos.y + 1, pos.z);
@@ -523,10 +516,7 @@
         }
 
         function finalizeGame() {
-            const lastPoints = points;
-            const lastAlt = Math.floor(pos.y);
-            const lastBat = Math.max(0, Math.floor(battery));
-            
+            const lp = points, la = Math.floor(pos.y), lb = Math.max(0, Math.floor(battery));
             isPlaying = false;
             if (points > highScore) { highScore = points; localStorage.setItem('uk_hs_v11', highScore); }
             document.getElementById('hs-display').innerText = `MAX SKOR: ${highScore}`;
@@ -534,8 +524,7 @@
             document.getElementById('hud').style.display = 'none';
             setTimeout(() => document.getElementById('menu').style.opacity = '1', 50);
             showNotif("GÖREV SONLANDI");
-            
-            getPostFlightAnalysis(lastPoints, lastAlt, lastBat);
+            getPostFlightAnalysis(lp, la, lb);
         }
 
         function setupVR() {
@@ -546,7 +535,9 @@
                         btn.style.display = "block";
                         btn.onclick = (e) => {
                             e.stopPropagation();
-                            navigator.xr.requestSession('immersive-vr').then(s => {
+                            navigator.xr.requestSession('immersive-vr', {
+                                optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+                            }).then(s => {
                                 renderer.xr.setSession(s);
                                 startGame();
                             });
