@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>UFKA KANAT PRO V11 - VR EDITION</title>
+    <title>UFKA KANAT PRO V11 - VR ULTIMATE</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { width:100%; height:100%; overflow:hidden; background:#0a101a; font-family:'Orbitron', sans-serif; }
+        html, body { width:100%; height:100%; overflow:hidden; background:#050a10; font-family:'Orbitron', sans-serif; }
         canvas { display:block; width:100vw; height:100vh; position: fixed; top:0; left:0; }
         
         .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; pointer-events: none; }
         #menu { background: radial-gradient(circle, rgba(5,20,40,0.95) 0%, rgba(2,5,15,1) 100%); cursor:pointer; pointer-events: auto; padding: 20px; text-align: center; width: 100%; height: 100%; overflow-y: auto; }
         
-        .game-title { font-size:clamp(30px, 8vw, 80px); font-weight:900; color:#FF6600; text-shadow:0 0 30px rgba(255,102,0,0.5); }
+        .game-title { font-size:clamp(30px, 8vw, 80px); font-weight:900; color:#FF6600; text-shadow:0 0 30px rgba(255,102,0,0.5); margin-bottom: 10px; }
         .start-btn { 
             background: linear-gradient(45deg, #00FF88, #00A3FF); color: white; border: none; padding: 20px 40px; 
             border-radius: 50px; cursor: pointer; font-family: 'Orbitron'; font-weight: bold; font-size: 18px;
-            pointer-events: auto; margin-top: 30px; box-shadow: 0 0 20px rgba(0,255,136,0.4);
+            pointer-events: auto; margin: 10px; box-shadow: 0 0 20px rgba(0,255,136,0.4); transition: 0.3s;
         }
+        .start-btn:hover { transform: scale(1.05); }
         
         #hud { display:none; position: fixed; top: 20px; left: 20px; pointer-events:none; z-index:50; }
-        .hud-line { font-size:16px; color:#00FF88; background: rgba(0,0,0,0.6); padding: 10px; margin-bottom: 5px; border-radius: 5px; min-width: 150px; }
+        .hud-line { font-size:14px; color:#00FF88; background: rgba(0,0,0,0.7); padding: 8px 15px; margin-bottom: 5px; border-left: 3px solid #00FF88; border-radius: 0 5px 5px 0; min-width: 160px; }
     </style>
 </head>
 <body>
@@ -29,11 +30,11 @@
 
     <div id="menu" class="overlay">
         <div class="game-title">UFKA KANAT V11</div>
-        <p style="color: #00E5FF; letter-spacing: 2px;">META QUEST VR UYUMLU</p>
+        <p style="color: #00E5FF; letter-spacing: 4px; margin-bottom: 20px;">INFINITE VR HORIZON</p>
         
-        <div style="margin: 30px; color: #fff; font-size: 12px; line-height: 2;">
+        <div style="margin: 20px; color: #fff; font-size: 12px; line-height: 2; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;">
             <b>SAĞ TETİK:</b> GAZ | <b>SOL TETİK:</b> FREN<br>
-            <b>SOL ANALOG:</b> DÖNÜŞ | <b>A TUŞU:</b> YÜKSEL | <b>B TUŞU:</b> ALÇAL
+            <b>SOL ANALOG:</b> YÖNLENDİRME | <b>A TUŞU:</b> YÜKSEL | <b>B TUŞU:</b> ALÇAL
         </div>
 
         <button class="start-btn" onclick="startVR()">VR MODUNDA BAŞLAT</button>
@@ -41,20 +42,19 @@
     </div>
 
     <div id="hud">
-        <div class="hud-line">PUAN: <span id="skor-t">0</span></div>
-        <div class="hud-line">BATARYA: <span id="bat-t">%100</span></div>
+        <div class="hud-line">SKOR: <span id="skor-t">0</span></div>
         <div class="hud-line">İRTİFA: <span id="alt-t">0m</span></div>
+        <div class="hud-line">HIZ: <span id="speed-t">0</span> km/s</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, drone, rings = [];
+        let scene, camera, renderer, drone, rings = [], trees = [];
         let isPlaying = false;
-        let score = 0, battery = 100;
+        let score = 0;
         
-        // Hareket Değişkenleri
-        let pos = new THREE.Vector3(0, 50, 0);
+        let pos = new THREE.Vector3(0, 5, 0);
         let vel = new THREE.Vector3(0, 0, 0);
         let rotationY = 0;
         const inputState = { throttle: 0, brake: 0, turn: 0, up: 0, down: 0 };
@@ -62,19 +62,21 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a101a);
-            scene.fog = new THREE.Fog(0x0a101a, 100, 5000);
+            scene.background = new THREE.Color(0x02050a);
+            scene.fog = new THREE.FogExp2(0x02050a, 0.002);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 10000);
             
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.xr.enabled = true;
 
-            // Işıklandırma
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(100, 500, 100);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0x00A3FF, 1.2);
+            sun.position.set(500, 1000, 250);
             scene.add(sun);
 
             createWorld();
@@ -85,54 +87,94 @@
         }
 
         function createWorld() {
-            // Zemin
-            const groundGeo = new THREE.PlaneGeometry(10000, 10000, 50, 50);
+            // Sonsuz zemin illüzyonu için büyük grid
+            const groundGeo = new THREE.PlaneGeometry(20000, 20000, 100, 100);
             groundGeo.rotateX(-Math.PI / 2);
-            const groundMat = new THREE.MeshLambertMaterial({ color: 0x1a2a1a, wireframe: false });
-            scene.add(new THREE.Mesh(groundGeo, groundMat));
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x0a0a0a, 
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            scene.add(ground);
 
-            // Hedef Halkalar
-            const ringGeo = new THREE.TorusGeometry(15, 1.5, 16, 32);
-            for(let i=0; i<50; i++) {
-                const ringMat = new THREE.MeshStandardMaterial({ color: 0x00FF88, emissive: 0x00FF88 });
-                const ring = new THREE.Mesh(ringGeo, ringMat);
-                ring.position.set((Math.random()-0.5)*1000, 20 + Math.random()*100, -i*250 - 200);
-                scene.add(ring);
-                rings.push(ring);
-            }
+            const grid = new THREE.GridHelper(20000, 200, 0x00FF88, 0x051015);
+            grid.position.y = 0.05;
+            scene.add(grid);
+
+            // Ağaçlar ve Halkalar
+            for(let i=0; i<150; i++) createTree();
+            for(let i=0; i<40; i++) createRing(i);
+        }
+
+        function createTree() {
+            const group = new THREE.Group();
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({color: 0x1a0d00});
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            
+            const leafGeo = new THREE.ConeGeometry(3, 8, 8);
+            const leafMat = new THREE.MeshStandardMaterial({color: 0x004422});
+            const leaves = new THREE.Mesh(leafGeo, leafMat);
+            leaves.position.y = 5;
+
+            group.add(trunk, leaves);
+            group.position.set((Math.random()-0.5)*2000, 2, (Math.random()-0.5)*2000);
+            scene.add(group);
+            trees.push(group);
+        }
+
+        function createRing(i) {
+            const ringGeo = new THREE.TorusGeometry(8, 0.8, 16, 32);
+            const ringMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00FF88, 
+                emissive: 0x00FF88, 
+                emissiveIntensity: 0.5 
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            resetRing(ring, i);
+            scene.add(ring);
+            rings.push(ring);
+        }
+
+        function resetRing(ring, i = 0) {
+            ring.position.set(
+                (Math.random()-0.5)*800, 
+                15 + Math.random()*50, 
+                drone ? drone.position.z - 500 - (Math.random()*1000) : -500 - (i*150)
+            );
+            ring.visible = true;
         }
 
         function createDrone() {
             drone = new THREE.Group();
             
-            // Ölçekleme Düzeltmesi: Gerçekçi drone boyutları (Metre cinsinden 0.4 x 0.1 x 0.5)
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.5), new THREE.MeshStandardMaterial({color: 0x333333}));
+            // VR ÖLÇEĞİ: Drone artık sadece 30cm (0.3 birim)
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.25, 0.05, 0.25), 
+                new THREE.MeshStandardMaterial({color: 0x111111, metalness: 1, roughness: 0.2})
+            );
             drone.add(body);
             
-            // Pervaneler (Ölçek küçültüldü)
-            const propGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8);
-            const propMat = new THREE.MeshBasicMaterial({color: 0x00FF88, transparent: true, opacity: 0.5});
+            const propGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.01, 16);
+            const propMat = new THREE.MeshBasicMaterial({color: 0x00FF88, transparent: true, opacity: 0.4});
             
-            // Pervane pozisyonları gövde boyutuna göre güncellendi
-            const positions = [[0.25, 0.06, 0.25], [-0.25, 0.06, 0.25], [0.25, 0.06, -0.25], [-0.25, 0.06, -0.25]];
-            positions.forEach(p => {
+            const posis = [[0.15, 0.03, 0.15], [-0.15, 0.03, 0.15], [0.15, 0.03, -0.15], [-0.15, 0.03, -0.15]];
+            posis.forEach(p => {
                 const pr = new THREE.Mesh(propGeo, propMat);
                 pr.position.set(...p);
                 drone.add(pr);
             });
 
             scene.add(drone);
-            drone.add(camera); 
-            
-            // Kamera Pozisyonu: Drone küçüldüğü için kamerayı drone'un hemen arkasına ve üzerine sabitledik.
-            // Bu sayede VR'da drone devasa gözükmeyecek, oyuncu drone'u makul bir mesafeden takip edecek.
-            camera.position.set(0, 0.3, 0.8); 
+            drone.add(camera);
+            // Kamera FPV modu: Drone arkasında hafif yukarıda
+            camera.position.set(0, 0.15, 0.45); 
         }
 
         function setupControls() {
             window.addEventListener('keydown', e => keys[e.code] = true);
             window.addEventListener('keyup', e => keys[e.code] = false);
-
             const c1 = renderer.xr.getController(0);
             const c2 = renderer.xr.getController(1);
             scene.add(c1, c2);
@@ -145,9 +187,7 @@
                 });
                 renderer.xr.setSession(session);
                 startGame();
-            } else {
-                alert("WebXR desteklenmiyor.");
-            }
+            } else { alert("WebXR desteklenmiyor."); }
         }
 
         function startGame() {
@@ -167,17 +207,16 @@
             if (session && session.inputSources) {
                 for (const source of session.inputSources) {
                     if (!source.gamepad) continue;
-                    const btns = source.gamepad.buttons;
-                    const axes = source.gamepad.axes;
-
+                    const b = source.gamepad.buttons;
+                    const a = source.gamepad.axes;
                     if (source.handedness === 'right') {
-                        inputState.throttle = btns[0].pressed ? 1 : 0;
-                        inputState.up = btns[4] && btns[4].pressed ? 1 : 0;
+                        inputState.throttle = b[0].pressed ? 1 : 0;
+                        inputState.up = b[4] && b[4].pressed ? 1 : 0;
                     }
                     if (source.handedness === 'left') {
-                        inputState.turn = -axes[2];
-                        inputState.brake = btns[0].pressed ? 1 : 0;
-                        inputState.down = btns[5] && btns[5].pressed ? 1 : 0;
+                        inputState.turn = -a[2];
+                        inputState.brake = b[0].pressed ? 1 : 0;
+                        inputState.down = b[5] && b[5].pressed ? 1 : 0;
                     }
                 }
             }
@@ -185,34 +224,44 @@
 
         function animate() {
             if (!isPlaying) return;
-
             updateInputs();
 
+            // Fizik
             rotationY += inputState.turn * 0.04;
+            let targetSpeed = (inputState.throttle - inputState.brake) * 2.0;
+            vel.x = Math.sin(rotationY) * -targetSpeed;
+            vel.z = Math.cos(rotationY) * -targetSpeed;
             
-            const speed = (inputState.throttle - inputState.brake) * 1.5;
-            vel.x = Math.sin(rotationY) * -speed;
-            vel.z = Math.cos(rotationY) * -speed;
-            
-            if (inputState.up) pos.y += 0.8;
-            if (inputState.down) pos.y -= 0.8;
-
+            if (inputState.up) pos.y += 0.5;
+            if (inputState.down) pos.y -= 0.5;
+            pos.y = Math.max(1, pos.y);
             pos.add(vel);
-            pos.y = Math.max(2, pos.y);
 
             drone.position.copy(pos);
             drone.rotation.y = rotationY;
-            drone.rotation.z = -inputState.turn * 0.2;
+            drone.rotation.z = -inputState.turn * 0.3;
+            drone.rotation.x = targetSpeed * 0.1;
 
+            // Sonsuz Harita Mantığı (Nesneleri Teleport Etme)
             rings.forEach(r => {
-                if(r.visible && pos.distanceTo(r.position) < 20) {
+                if(r.position.z > drone.position.z + 50) resetRing(r);
+                if(r.visible && pos.distanceTo(r.position) < 10) {
                     r.visible = false;
                     score += 100;
                     document.getElementById('skor-t').innerText = score;
                 }
             });
 
+            trees.forEach(t => {
+                if(t.position.z > drone.position.z + 500) {
+                    t.position.z -= 2000;
+                    t.position.x = (Math.random()-0.5)*2000;
+                }
+            });
+
+            // HUD
             document.getElementById('alt-t').innerText = Math.floor(pos.y) + "m";
+            document.getElementById('speed-t').innerText = Math.floor(Math.abs(targetSpeed) * 40);
             
             renderer.render(scene, camera);
         }
