@@ -104,13 +104,16 @@
 
         function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 3), new THREE.MeshStandardMaterial({color: 0x333333}));
+            // Gövde küçültüldü: 2, 0.5, 3 -> 1, 0.25, 1.5
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 1.5), new THREE.MeshStandardMaterial({color: 0x333333}));
             drone.add(body);
             
-            // Pervaneler (Basit)
-            const propGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 8);
+            // Pervaneler küçültüldü: Radius 1.5 -> 0.75
+            const propGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.05, 8);
             const propMat = new THREE.MeshBasicMaterial({color: 0x00FF88, transparent: true, opacity: 0.5});
-            const positions = [[1.5, 0.3, 1.5], [-1.5, 0.3, 1.5], [1.5, 0.3, -1.5], [-1.5, 0.3, -1.5]];
+            
+            // Pervane pozisyonları orantılı olarak yaklaştırıldı
+            const positions = [[0.75, 0.15, 0.75], [-0.75, 0.15, 0.75], [0.75, 0.15, -0.75], [-0.75, 0.15, -0.75]];
             positions.forEach(p => {
                 const pr = new THREE.Mesh(propGeo, propMat);
                 pr.position.set(...p);
@@ -119,7 +122,7 @@
 
             scene.add(drone);
             drone.add(camera); // Kamerayı drone'a bağla (FPV)
-            camera.position.set(0, 1, 2);
+            camera.position.set(0, 0.5, 1); // Kamera pozisyonu da yeni boyuta göre ayarlandı
         }
 
         function setupControls() {
