@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>UFKA KANAT V11 - GREEN VALLEY VR</title>
+    <title>UFKA KANAT V11 - SMOOTH FLIGHT</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -30,7 +30,7 @@
 
     <div id="menu" class="overlay">
         <div class="game-title">UFKA KANAT V11</div>
-        <p style="color: #1B5E20; letter-spacing: 4px; margin-bottom: 20px; font-weight: bold;">YEŞİL VADİ - VR EDITION</p>
+        <p style="color: #1B5E20; letter-spacing: 4px; margin-bottom: 20px; font-weight: bold;">TEVFİK İLERİ - SMOOTH FLIGHT</p>
         
         <div style="margin: 20px; color: #333; font-size: 12px; line-height: 2; background: rgba(255,255,255,0.5); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50;">
             <b>SAĞ TETİK:</b> GAZ | <b>SOL TETİK:</b> FREN<br>
@@ -54,15 +54,20 @@
         let isPlaying = false;
         let score = 0;
         
+        // Hareket ve Yumuşatma Değişkenleri
         let pos = new THREE.Vector3(0, 5, 0);
         let vel = new THREE.Vector3(0, 0, 0);
         let rotationY = 0;
+        let targetRotationY = 0;
+        let currentTiltZ = 0;
+        let currentTiltX = 0;
+
         const inputState = { throttle: 0, brake: 0, turn: 0, up: 0, down: 0 };
         const keys = {};
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB); // Açık mavi gökyüzü
+            scene.background = new THREE.Color(0x87CEEB); 
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0015);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 15000);
@@ -72,7 +77,6 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.xr.enabled = true;
 
-            // Aydınlık Işıklandırma
             const ambient = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambient);
 
@@ -87,25 +91,35 @@
             renderer.setAnimationLoop(animate);
         }
 
+        function createTextTexture(text) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            ctx.fillStyle = 'rgba(0,0,0,0)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = 'bold 50px Orbitron';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#FFD600';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText(text, canvas.width/2, canvas.height/2);
+            return new THREE.CanvasTexture(canvas);
+        }
+
         function createWorld() {
-            // Yeşil Zemin
             const groundGeo = new THREE.PlaneGeometry(20000, 20000);
             groundGeo.rotateX(-Math.PI / 2);
-            const groundMat = new THREE.MeshStandardMaterial({ 
-                color: 0x3d8c40, // Çimen yeşili
-                roughness: 0.9,
-            });
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3d8c40, roughness: 0.9 });
             ground = new THREE.Mesh(groundGeo, groundMat);
             scene.add(ground);
 
-            // Daha seyrek ama aydınlık bir grid (Vadi hissi için)
             const grid = new THREE.GridHelper(20000, 100, 0x2e7d32, 0x2e7d32);
             grid.position.y = 0.1;
             scene.add(grid);
 
-            // Çok sayıda ağaç
             for(let i=0; i<200; i++) createTree();
-            // Halkalar (Daha görünür sarı-altın rengi)
             for(let i=0; i<40; i++) createRing(i);
         }
 
@@ -114,12 +128,10 @@
             const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 5, 8);
             const trunkMat = new THREE.MeshStandardMaterial({color: 0x4b2d0b});
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            
             const leafGeo = new THREE.ConeGeometry(3.5, 9, 8);
             const leafMat = new THREE.MeshStandardMaterial({color: 0x1b5e20});
             const leaves = new THREE.Mesh(leafGeo, leafMat);
             leaves.position.y = 6;
-
             group.add(trunk, leaves);
             group.position.set((Math.random()-0.5)*3000, 2.5, (Math.random()-0.5)*3000);
             scene.add(group);
@@ -127,40 +139,38 @@
         }
 
         function createRing(i) {
+            const ringGroup = new THREE.Group();
             const ringGeo = new THREE.TorusGeometry(8, 0.7, 16, 32);
-            const ringMat = new THREE.MeshStandardMaterial({ 
-                color: 0xffd600, 
-                emissive: 0xffd600, 
-                emissiveIntensity: 0.4 
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xffd600, emissive: 0xffd600, emissiveIntensity: 0.4 });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringGroup.add(ringMesh);
+
+            const textMat = new THREE.MeshBasicMaterial({ 
+                map: createTextTexture("TEVFİK İLERİ"), 
+                transparent: true, side: THREE.DoubleSide
             });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            resetRing(ring, i);
-            scene.add(ring);
-            rings.push(ring);
+            const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), textMat);
+            ringGroup.add(textMesh);
+
+            resetRing(ringGroup, i);
+            scene.add(ringGroup);
+            rings.push(ringGroup);
         }
 
         function resetRing(ring, i = 0) {
-            ring.position.set(
-                (Math.random()-0.5)*1000, 
-                10 + Math.random()*40, 
-                drone ? drone.position.z - 600 - (Math.random()*1200) : -500 - (i*150)
-            );
+            ring.position.set((Math.random()-0.5)*1000, 10 + Math.random()*40, 
+            drone ? drone.position.z - 600 - (Math.random()*1200) : -500 - (i*150));
             ring.visible = true;
         }
 
         function createDrone() {
             drone = new THREE.Group();
-            
-            // Küçük Drone (Ölçek korundu)
-            const body = new THREE.Mesh(
-                new THREE.BoxGeometry(0.25, 0.05, 0.25), 
-                new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.3})
-            );
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.05, 0.25), 
+            new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.3}));
             drone.add(body);
             
             const propGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.01, 16);
             const propMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.5});
-            
             const posis = [[0.15, 0.03, 0.15], [-0.15, 0.03, 0.15], [0.15, 0.03, -0.15], [-0.15, 0.03, -0.15]];
             posis.forEach(p => {
                 const pr = new THREE.Mesh(propGeo, propMat);
@@ -183,9 +193,7 @@
 
         async function startVR() {
             if (navigator.xr) {
-                const session = await navigator.xr.requestSession('immersive-vr', {
-                    optionalFeatures: ['local-floor', 'bounded-floor']
-                });
+                const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
                 renderer.xr.setSession(session);
                 startGame();
             } else { alert("WebXR desteklenmiyor."); }
@@ -215,7 +223,7 @@
                         inputState.up = b[4] && b[4].pressed ? 1 : 0;
                     }
                     if (source.handedness === 'left') {
-                        inputState.turn = -a[2];
+                        inputState.turn = -a[2]; // Analog hassasiyeti
                         inputState.brake = b[0].pressed ? 1 : 0;
                         inputState.down = b[5] && b[5].pressed ? 1 : 0;
                     }
@@ -227,29 +235,43 @@
             if (!isPlaying) return;
             updateInputs();
 
-            // Dönüş ve Hareket
-            rotationY += inputState.turn * 0.04;
-            let targetSpeed = (inputState.throttle - inputState.brake) * 2.2;
-            vel.x = Math.sin(rotationY) * -targetSpeed;
-            vel.z = Math.cos(rotationY) * -targetSpeed;
+            // YUMUŞAK DÖNÜŞ MANTIĞI
+            const turnSpeed = 0.04;
+            const smoothing = 0.1; // 0 ile 1 arası, düştükçe yumuşar
             
-            if (inputState.up) pos.y += 0.5;
-            if (inputState.down) pos.y -= 0.5;
-            pos.y = Math.max(1, pos.y);
+            targetRotationY += inputState.turn * turnSpeed;
+            rotationY += (targetRotationY - rotationY) * smoothing;
+
+            // Hız ve Momentum
+            let accel = (inputState.throttle - inputState.brake) * 2.2;
+            vel.x += (Math.sin(rotationY) * -accel - vel.x) * 0.05;
+            vel.z += (Math.cos(rotationY) * -accel - vel.z) * 0.05;
+            
+            // Yükseklik yumuşatma
+            let targetUp = (inputState.up - inputState.down) * 0.5;
+            vel.y += (targetUp - vel.y) * 0.1;
+            
             pos.add(vel);
+            pos.y = Math.max(1, pos.y);
 
             drone.position.copy(pos);
             drone.rotation.y = rotationY;
-            drone.rotation.z = -inputState.turn * 0.3;
-            drone.rotation.x = targetSpeed * 0.1;
 
-            // Zemin Takibi (Sonsuzluk illüzyonu)
-            ground.position.z = drone.position.z;
-            ground.position.x = drone.position.x;
+            // Görsel Yatış (Tilt) Yumuşatma
+            let targetTiltZ = -inputState.turn * 0.4;
+            let targetTiltX = accel * 0.12;
+            currentTiltZ += (targetTiltZ - currentTiltZ) * 0.1;
+            currentTiltX += (targetTiltX - currentTiltX) * 0.1;
+            
+            drone.rotation.z = currentTiltZ;
+            drone.rotation.x = currentTiltX;
 
-            // Sonsuz Nesne Yönetimi
+            // Sonsuz Dünya
+            ground.position.set(pos.x, 0, pos.z);
+
             rings.forEach(r => {
-                if(r.position.z > drone.position.z + 100) resetRing(r);
+                r.lookAt(pos.x, r.position.y, pos.z);
+                if(r.position.z > pos.z + 100) resetRing(r);
                 if(r.visible && pos.distanceTo(r.position) < 12) {
                     r.visible = false;
                     score += 100;
@@ -258,15 +280,14 @@
             });
 
             trees.forEach(t => {
-                if(t.position.z > drone.position.z + 500) {
+                if(t.position.z > pos.z + 500) {
                     t.position.z -= 3000;
-                    t.position.x = (Math.random()-0.5)*3000;
+                    t.position.x = pos.x + (Math.random()-0.5)*3000;
                 }
             });
 
-            // HUD Güncelleme
             document.getElementById('alt-t').innerText = Math.floor(pos.y) + "m";
-            document.getElementById('speed-t').innerText = Math.floor(Math.abs(targetSpeed) * 45);
+            document.getElementById('speed-t').innerText = Math.floor(vel.length() * 45);
             
             renderer.render(scene, camera);
         }
