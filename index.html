@@ -104,13 +104,17 @@
 
         function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 3), new THREE.MeshStandardMaterial({color: 0x333333}));
+            
+            // Ölçekleme Düzeltmesi: Gerçekçi drone boyutları (Metre cinsinden 0.4 x 0.1 x 0.5)
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.5), new THREE.MeshStandardMaterial({color: 0x333333}));
             drone.add(body);
             
-            // Pervaneler (Basit)
-            const propGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 8);
+            // Pervaneler (Ölçek küçültüldü)
+            const propGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8);
             const propMat = new THREE.MeshBasicMaterial({color: 0x00FF88, transparent: true, opacity: 0.5});
-            const positions = [[1.5, 0.3, 1.5], [-1.5, 0.3, 1.5], [1.5, 0.3, -1.5], [-1.5, 0.3, -1.5]];
+            
+            // Pervane pozisyonları gövde boyutuna göre güncellendi
+            const positions = [[0.25, 0.06, 0.25], [-0.25, 0.06, 0.25], [0.25, 0.06, -0.25], [-0.25, 0.06, -0.25]];
             positions.forEach(p => {
                 const pr = new THREE.Mesh(propGeo, propMat);
                 pr.position.set(...p);
@@ -118,16 +122,17 @@
             });
 
             scene.add(drone);
-            drone.add(camera); // Kamerayı drone'a bağla (FPV)
-            camera.position.set(0, 10, 25);
+            drone.add(camera); 
+            
+            // Kamera Pozisyonu: Drone küçüldüğü için kamerayı drone'un hemen arkasına ve üzerine sabitledik.
+            // Bu sayede VR'da drone devasa gözükmeyecek, oyuncu drone'u makul bir mesafeden takip edecek.
+            camera.position.set(0, 0.3, 0.8); 
         }
 
         function setupControls() {
-            // Klavye
             window.addEventListener('keydown', e => keys[e.code] = true);
             window.addEventListener('keyup', e => keys[e.code] = false);
 
-            // VR Kumandaları
             const c1 = renderer.xr.getController(0);
             const c2 = renderer.xr.getController(1);
             scene.add(c1, c2);
@@ -152,14 +157,12 @@
         }
 
         function updateInputs() {
-            // Klavye Kontrolü
             inputState.throttle = keys['KeyW'] ? 1 : 0;
             inputState.brake = keys['KeyS'] ? 1 : 0;
             inputState.turn = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
             inputState.up = keys['Space'] ? 1 : 0;
             inputState.down = keys['ShiftLeft'] ? 1 : 0;
 
-            // VR Kumanda Kontrolü
             const session = renderer.xr.getSession();
             if (session && session.inputSources) {
                 for (const source of session.inputSources) {
@@ -168,13 +171,13 @@
                     const axes = source.gamepad.axes;
 
                     if (source.handedness === 'right') {
-                        inputState.throttle = btns[0].pressed ? 1 : 0; // Tetik
-                        inputState.up = btns[4] && btns[4].pressed ? 1 : 0; // A Butonu
+                        inputState.throttle = btns[0].pressed ? 1 : 0;
+                        inputState.up = btns[4] && btns[4].pressed ? 1 : 0;
                     }
                     if (source.handedness === 'left') {
-                        inputState.turn = -axes[2]; // Sol Analog X
-                        inputState.brake = btns[0].pressed ? 1 : 0; // Sol Tetik
-                        inputState.down = btns[5] && btns[5].pressed ? 1 : 0; // B Butonu
+                        inputState.turn = -axes[2];
+                        inputState.brake = btns[0].pressed ? 1 : 0;
+                        inputState.down = btns[5] && btns[5].pressed ? 1 : 0;
                     }
                 }
             }
@@ -185,7 +188,6 @@
 
             updateInputs();
 
-            // Fizik ve Hareket
             rotationY += inputState.turn * 0.04;
             
             const speed = (inputState.throttle - inputState.brake) * 1.5;
@@ -196,15 +198,12 @@
             if (inputState.down) pos.y -= 0.8;
 
             pos.add(vel);
-            
-            // Sınırlar
             pos.y = Math.max(2, pos.y);
 
             drone.position.copy(pos);
             drone.rotation.y = rotationY;
-            drone.rotation.z = -inputState.turn * 0.2; // Yatış efekti
+            drone.rotation.z = -inputState.turn * 0.2;
 
-            // Halka Kontrolü
             rings.forEach(r => {
                 if(r.visible && pos.distanceTo(r.position) < 20) {
                     r.visible = false;
@@ -213,7 +212,6 @@
                 }
             });
 
-            // HUD Güncelleme
             document.getElementById('alt-t').innerText = Math.floor(pos.y) + "m";
             
             renderer.render(scene, camera);
