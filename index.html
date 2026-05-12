@@ -10,10 +10,25 @@
         html, body { width:100%; height:100%; overflow:hidden; background:#87CEEB; font-family:'Orbitron', sans-serif; }
         canvas { display:block; width:100vw; height:100vh; position: fixed; top:0; left:0; }
         
+        /* Çarpma Efekti Katmanı */
+        #crash-overlay { 
+            position: fixed; top:0; left:0; width:100%; height:100%; 
+            background: rgba(255, 0, 0, 0); pointer-events: none; z-index: 200;
+            transition: background 0.1s; 
+        }
+
         .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; pointer-events: none; }
-        #menu { background: linear-gradient(to bottom, rgba(135,206,235,0.8), rgba(255,255,255,0.9)); cursor:pointer; pointer-events: auto; padding: 20px; text-align: center; width: 100%; height: 100%; overflow-y: auto; }
+        
+        #menu, #game-over { 
+            background: linear-gradient(to bottom, rgba(135,206,235,0.8), rgba(255,255,255,0.9)); 
+            cursor:pointer; pointer-events: auto; padding: 20px; text-align: center; width: 100%; height: 100%; overflow-y: auto; 
+        }
+
+        #game-over { display: none; background: rgba(0,0,0,0.85); color: white; }
         
         .game-title { font-size:clamp(30px, 8vw, 80px); font-weight:900; color:#2E7D32; text-shadow:0 0 20px rgba(255,255,255,0.5); margin-bottom: 10px; }
+        .crash-title { font-size: 50px; color: #ff3333; margin-bottom: 20px; }
+
         .start-btn { 
             background: linear-gradient(45deg, #4CAF50, #2E7D32); color: white; border: none; padding: 20px 40px; 
             border-radius: 50px; cursor: pointer; font-family: 'Orbitron'; font-weight: bold; font-size: 18px;
@@ -26,8 +41,10 @@
     </style>
 </head>
 <body>
+    <div id="crash-overlay"></div>
     <canvas id="c"></canvas>
 
+    <!-- Ana Menü -->
     <div id="menu" class="overlay">
         <div class="game-title">UFKA KANAT V11</div>
         <p style="color: #1B5E20; letter-spacing: 4px; margin-bottom: 20px; font-weight: bold;">TEVFİK İLERİ - SMOOTH FLIGHT</p>
@@ -41,6 +58,13 @@
         <button class="start-btn" style="background: #555;" onclick="startGame()">MASAÜSTÜ BAŞLAT</button>
     </div>
 
+    <!-- Öldüğünde Çıkacak Ekran -->
+    <div id="game-over" class="overlay">
+        <div class="crash-title">DRON KIRILDI!</div>
+        <p id="final-score" style="font-size: 24px; margin-bottom: 30px;">SKOR: 0</p>
+        <button class="start-btn" onclick="resetGame()">YENİDEN DENE</button>
+    </div>
+
     <div id="hud">
         <div class="hud-line">SKOR: <span id="skor-t">0</span></div>
         <div class="hud-line">İRTİFA: <span id="alt-t">0m</span></div>
@@ -52,9 +76,9 @@
     <script>
         let scene, camera, renderer, drone, ground, rings = [], trees = [];
         let isPlaying = false;
+        let isCrashed = false; // Yeni: Ölme durumu kontrolü
         let score = 0;
         
-        // Hareket ve Yumuşatma Değişkenleri
         let pos = new THREE.Vector3(0, 5, 0);
         let vel = new THREE.Vector3(0, 0, 0);
         let rotationY = 0;
@@ -186,9 +210,6 @@
         function setupControls() {
             window.addEventListener('keydown', e => keys[e.code] = true);
             window.addEventListener('keyup', e => keys[e.code] = false);
-            const c1 = renderer.xr.getController(0);
-            const c2 = renderer.xr.getController(1);
-            scene.add(c1, c2);
         }
 
         async function startVR() {
@@ -201,8 +222,31 @@
 
         function startGame() {
             isPlaying = true;
+            isCrashed = false;
             document.getElementById('menu').style.display = 'none';
+            document.getElementById('game-over').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
+            document.getElementById('crash-overlay').style.background = "rgba(255, 0, 0, 0)";
+        }
+
+        // Yeni: Oyunu sıfırlama fonksiyonu
+        function resetGame() {
+            pos.set(0, 5, 0);
+            vel.set(0, 0, 0);
+            score = 0;
+            document.getElementById('skor-t').innerText = "0";
+            startGame();
+        }
+
+        // Yeni: Ölme mekaniği
+        function handleCrash() {
+            isCrashed = true;
+            isPlaying = false;
+            document.getElementById('crash-overlay').style.background = "rgba(255, 0, 0, 0.6)";
+            document.getElementById('final-score').innerText = "SKOR: " + score;
+            setTimeout(() => {
+                document.getElementById('game-over').style.display = 'flex';
+            }, 500);
         }
 
         function updateInputs() {
@@ -223,7 +267,7 @@
                         inputState.up = b[4] && b[4].pressed ? 1 : 0;
                     }
                     if (source.handedness === 'left') {
-                        inputState.turn = -a[2]; // Analog hassasiyeti
+                        inputState.turn = -a[2]; 
                         inputState.brake = b[0].pressed ? 1 : 0;
                         inputState.down = b[5] && b[5].pressed ? 1 : 0;
                     }
@@ -232,32 +276,33 @@
         }
 
         function animate() {
-            if (!isPlaying) return;
+            if (!isPlaying || isCrashed) return; // Kaza olduysa durdur
             updateInputs();
 
-            // YUMUŞAK DÖNÜŞ MANTIĞI
             const turnSpeed = 0.04;
-            const smoothing = 0.1; // 0 ile 1 arası, düştükçe yumuşar
+            const smoothing = 0.1; 
             
             targetRotationY += inputState.turn * turnSpeed;
             rotationY += (targetRotationY - rotationY) * smoothing;
 
-            // Hız ve Momentum
             let accel = (inputState.throttle - inputState.brake) * 2.2;
             vel.x += (Math.sin(rotationY) * -accel - vel.x) * 0.05;
             vel.z += (Math.cos(rotationY) * -accel - vel.z) * 0.05;
             
-            // Yükseklik yumuşatma
             let targetUp = (inputState.up - inputState.down) * 0.5;
             vel.y += (targetUp - vel.y) * 0.1;
             
             pos.add(vel);
-            pos.y = Math.max(1, pos.y);
+
+            // ÖLME KONTROLÜ: Yere (y=0) çok yaklaşırsa ölür
+            if (pos.y < 0.6) {
+                pos.y = 0.5;
+                handleCrash();
+            }
 
             drone.position.copy(pos);
             drone.rotation.y = rotationY;
 
-            // Görsel Yatış (Tilt) Yumuşatma
             let targetTiltZ = -inputState.turn * 0.4;
             let targetTiltX = accel * 0.12;
             currentTiltZ += (targetTiltZ - currentTiltZ) * 0.1;
@@ -266,7 +311,6 @@
             drone.rotation.z = currentTiltZ;
             drone.rotation.x = currentTiltX;
 
-            // Sonsuz Dünya
             ground.position.set(pos.x, 0, pos.z);
 
             rings.forEach(r => {
